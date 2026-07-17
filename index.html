@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MetLife Brasil - Baixe o App</title>
+
+  <!-- Meta tags para o preview no WhatsApp -->
+  <meta property="og:title" content="MetLife Brasil">
+  <meta property="og:description" content="Baixe o app da MetLife Brasil na loja do seu celular">
+  <meta property="og:image" content="https://play-lh.googleusercontent.com/6ujjcqRoENwqIDIzpe6-1DGdxDLINL2QBgnJXpxfmT8ky0K1eBFAeqNSuLUytMPQtSk">
+  <meta property="og:type" content="website">
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #00857C;
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 24px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    h1 { font-size: 20px; margin-bottom: 8px; font-weight: 600; }
+    p { font-size: 14px; opacity: 0.85; margin-bottom: 32px; }
+    .buttons { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 320px; }
+    .btn {
+      display: block;
+      background: #fff;
+      color: #00857C;
+      padding: 14px 20px;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 15px;
+      transition: transform 0.15s ease;
+    }
+    .btn:active { transform: scale(0.97); }
+  </style>
+</head>
+<body>
+  <div class="spinner" id="spinner"></div>
+  <h1>Redirecionando para a loja...</h1>
+  <p>Se não abrir automaticamente, toque na opção abaixo</p>
+
+  <div class="buttons">
+    <a class="btn" id="androidBtn" href="https://play.google.com/store/apps/details?id=com.metlife.brazil.business.css&hl=pt_BR">
+      Baixar na Google Play
+    </a>
+    <a class="btn" id="iosBtn" href="https://apps.apple.com/br/app/metlife-brasil/id1625752674">
+      Baixar na App Store
+    </a>
+  </div>
+
+  <script>
+    const ANDROID_URL = "https://play.google.com/store/apps/details?id=com.metlife.brazil.business.css&hl=pt_BR";
+    const IOS_URL = "https://apps.apple.com/br/app/metlife-brasil/id1625752674";
+
+    const ua = navigator.userAgent || navigator.vendor || window.opera;
+    const isAndroid = /android/i.test(ua);
+    const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+
+    // Redireciona automaticamente
+    if (isAndroid) {
+      window.location.href = ANDROID_URL;
+    } else if (isIOS) {
+      window.location.href = IOS_URL;
+    } else {
+      // Desktop: não redireciona sozinho, só mostra os botões
+      document.getElementById('spinner').style.display = 'none';
+      document.querySelector('h1').textContent = 'Escolha sua loja';
+      document.querySelector('p').textContent = 'Detectamos que você está no computador';
+    }
+  </script>
+</body>
+</html>
