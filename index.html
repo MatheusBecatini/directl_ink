@@ -54,8 +54,8 @@
 </head>
 <body>
   <div class="spinner" id="spinner"></div>
-  <h1>Redirecionando para a loja...</h1>
-  <p>Se não abrir automaticamente, toque na opção abaixo</p>
+  <h1 id="title">Abrindo o app...</h1>
+  <p id="subtitle">Se não abrir automaticamente, toque na opção abaixo</p>
 
   <div class="buttons">
     <a class="btn" id="androidBtn" href="https://play.google.com/store/apps/details?id=com.metlife.brazil.business.css&hl=pt_BR">
@@ -67,23 +67,65 @@
   </div>
 
   <script>
-    const ANDROID_URL = "https://play.google.com/store/apps/details?id=com.metlife.brazil.business.css&hl=pt_BR";
-    const IOS_URL = "https://apps.apple.com/br/app/metlife-brasil/id1625752674";
+    const APP_SCHEME = "cssapp://home";
+
+    const ANDROID_PACKAGE = "com.metlife.brazil.business.css";
+    const ANDROID_STORE = "https://play.google.com/store/apps/details?id=com.metlife.brazil.business.css&hl=pt_BR";
+    const IOS_STORE = "https://apps.apple.com/br/app/metlife-brasil/id1625752674";
 
     const ua = navigator.userAgent || navigator.vendor || window.opera;
     const isAndroid = /android/i.test(ua);
     const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
 
-    // Redireciona automaticamente
+    function buildAndroidIntent(scheme) {
+      // Chrome Android: tenta abrir o app; se não estiver instalado, cai na Play Store
+      const path = scheme.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "").replace(/^\/+/, "") || "open";
+      const schemeName = (scheme.match(/^([a-z][a-z0-9+.-]*):/i) || [])[1] || "https";
+      return (
+        "intent://" + path +
+        "#Intent;" +
+        "scheme=" + schemeName + ";" +
+        "package=" + ANDROID_PACKAGE + ";" +
+        "S.browser_fallback_url=" + encodeURIComponent(ANDROID_STORE) + ";" +
+        "end"
+      );
+    }
+
+    function openAppOrStore(deepLink, storeUrl) {
+      let appLikelyOpened = false;
+
+      const markOpened = () => { appLikelyOpened = true; };
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) markOpened();
+      });
+      window.addEventListener("pagehide", markOpened);
+      window.addEventListener("blur", markOpened);
+
+      window.location.href = deepLink;
+
+      setTimeout(() => {
+        if (!appLikelyOpened && !document.hidden) {
+          window.location.href = storeUrl;
+        }
+      }, 1800);
+    }
+
     if (isAndroid) {
-      window.location.href = ANDROID_URL;
+      if (APP_SCHEME) {
+        openAppOrStore(buildAndroidIntent(APP_SCHEME), ANDROID_STORE);
+      } else {
+        window.location.href = ANDROID_STORE;
+      }
     } else if (isIOS) {
-      window.location.href = IOS_URL;
+      if (APP_SCHEME) {
+        openAppOrStore(APP_SCHEME, IOS_STORE);
+      } else {
+        window.location.href = IOS_STORE;
+      }
     } else {
-      // Desktop: não redireciona sozinho, só mostra os botões
-      document.getElementById('spinner').style.display = 'none';
-      document.querySelector('h1').textContent = 'Escolha sua loja';
-      document.querySelector('p').textContent = 'Detectamos que você está no computador';
+      document.getElementById("spinner").style.display = "none";
+      document.getElementById("title").textContent = "Escolha sua loja";
+      document.getElementById("subtitle").textContent = "Detectamos que você está no computador";
     }
   </script>
 </body>
