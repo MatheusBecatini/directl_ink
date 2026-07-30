@@ -5,70 +5,536 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MetLife Brasil - Baixe o App</title>
 
-  <!-- Meta tags para o preview no WhatsApp -->
   <meta property="og:title" content="MetLife Brasil">
   <meta property="og:description" content="Baixe o app da MetLife Brasil na loja do seu celular">
   <meta property="og:image" content="https://play-lh.googleusercontent.com/6ujjcqRoENwqIDIzpe6-1DGdxDLINL2QBgnJXpxfmT8ky0K1eBFAeqNSuLUytMPQtSk">
   <meta property="og:type" content="website">
 
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
   <style>
+    :root {
+      --metlife-blue: #0090da;
+      --metlife-dark-blue: #0061a0;
+      --metlife-green: #a4ce4e;
+      --text: #333333;
+      --text-muted: #666666;
+      --bg: #ffffff;
+      --bg-soft: #f4f4f4;
+      --bg-footer: #eeeeee;
+      --border: #d9d9d9;
+      --header-height: 72px;
+      --max-width: 1120px;
+    }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #00857C;
-      color: #fff;
+      font-family: Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
       min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.4;
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    /* ——— Header ——— */
+    .header {
+      background: var(--bg);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      height: var(--header-height);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      gap: 32px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .logo-mark {
+      width: 36px;
+      height: 36px;
+      display: block;
+    }
+
+    .logo-wordmark {
+      font-size: 22px;
+      font-weight: 700;
+      color: #4a4a4a;
+      letter-spacing: -0.02em;
+    }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      margin-left: auto;
+      list-style: none;
+    }
+
+    .nav a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    .nav a:hover { color: var(--metlife-blue); }
+
+    .caret {
+      width: 0;
+      height: 0;
+      border-left: 4px solid transparent;
+      border-right: 4px solid transparent;
+      border-top: 5px solid currentColor;
+      opacity: 0.7;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-shrink: 0;
+    }
+
+    .login {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .login:hover { color: var(--metlife-blue); }
+
+    .icon-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      color: var(--text);
+      border-radius: 4px;
+    }
+
+    .icon-btn:hover { color: var(--metlife-blue); }
+
+    .header-accent {
+      height: 3px;
+      background: linear-gradient(
+        to right,
+        var(--metlife-blue) 0%,
+        var(--metlife-blue) 50%,
+        var(--metlife-green) 50%,
+        var(--metlife-green) 100%
+      );
+    }
+
+    .menu-toggle {
+      display: none;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      padding: 8px;
+      color: var(--text);
+    }
+
+    /* ——— Main ——— */
+    .main {
+      flex: 1;
+      padding: 56px 24px 80px;
+    }
+
+    .main-inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+    }
+
+    .page-title {
+      font-size: 36px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 28px;
+      letter-spacing: -0.02em;
+    }
+
+    .download-panel {
+      background: var(--bg-soft);
+      border-radius: 4px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      min-height: 220px;
+      overflow: hidden;
+    }
+
+    .download-option {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      gap: 16px;
+      padding: 40px 24px;
       text-align: center;
-      padding: 24px;
+      transition: background 0.2s ease, transform 0.15s ease;
+      color: var(--text);
     }
-    .spinner {
-      width: 40px;
-      height: 40px;
-      border: 4px solid rgba(255,255,255,0.3);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin-bottom: 24px;
+
+    .download-option:hover {
+      background: #ebebeb;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    h1 { font-size: 20px; margin-bottom: 8px; font-weight: 600; }
-    p { font-size: 14px; opacity: 0.85; margin-bottom: 32px; }
-    .buttons { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 320px; }
-    .btn {
+
+    .download-option:active {
+      transform: scale(0.99);
+    }
+
+    .download-option + .download-option {
+      border-left: 1px solid var(--border);
+    }
+
+    .store-icon {
+      width: 48px;
+      height: 48px;
+      color: var(--metlife-blue);
+    }
+
+    .download-label {
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    .download-label span {
       display: block;
-      background: #fff;
-      color: #00857C;
-      padding: 14px 20px;
-      border-radius: 10px;
-      text-decoration: none;
-      font-weight: 600;
-      font-size: 15px;
-      transition: transform 0.15s ease;
+      font-weight: 700;
     }
-    .btn:active { transform: scale(0.97); }
+
+    .status {
+      display: none;
+      margin-bottom: 20px;
+      padding: 14px 16px;
+      background: #e8f5fc;
+      border-left: 3px solid var(--metlife-blue);
+      color: var(--metlife-dark-blue);
+      font-size: 14px;
+    }
+
+    .status.is-visible { display: block; }
+
+    /* ——— Footer ——— */
+    .footer {
+      background: var(--bg-footer);
+      padding: 40px 24px 48px;
+      border-top: 1px solid #e0e0e0;
+    }
+
+    .footer-inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 48px;
+      align-items: start;
+    }
+
+    .footer-logo .logo-wordmark {
+      font-size: 20px;
+    }
+
+    .footer-logo .logo-mark {
+      width: 32px;
+      height: 32px;
+    }
+
+    .footer-columns {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+
+    .footer-col {
+      padding-left: 24px;
+      border-left: 1px solid #d0d0d0;
+    }
+
+    .footer-col h3 {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: #2a2a2a;
+    }
+
+    .footer-col h3.uppercase {
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+
+    .footer-col ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .footer-col a {
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .footer-col a:hover {
+      color: var(--metlife-blue);
+      text-decoration: underline;
+    }
+
+    .footer-bottom {
+      max-width: var(--max-width);
+      margin: 32px auto 0;
+      padding-top: 20px;
+      border-top: 1px solid #d8d8d8;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* ——— Responsive ——— */
+    @media (max-width: 960px) {
+      .nav { display: none; }
+
+      .nav.is-open {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        position: absolute;
+        top: var(--header-height);
+        left: 0;
+        right: 0;
+        background: var(--bg);
+        padding: 16px 24px 24px;
+        gap: 16px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .menu-toggle { display: inline-flex; }
+      .header-inner { position: relative; }
+      .header-actions { margin-left: auto; }
+
+      .page-title { font-size: 28px; }
+
+      .footer-inner {
+        grid-template-columns: 1fr;
+        gap: 28px;
+      }
+
+      .footer-columns {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .footer-col {
+        padding-left: 16px;
+        border-left: 1px solid #d0d0d0;
+        padding-top: 0;
+        border-top: none;
+      }
+
+      .footer-col:first-child {
+        padding-left: 0;
+        border-left: none;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .main { padding: 36px 16px 56px; }
+
+      .download-panel {
+        grid-template-columns: 1fr;
+        min-height: auto;
+      }
+
+      .download-option + .download-option {
+        border-left: none;
+        border-top: 1px solid var(--border);
+      }
+
+      .download-option { padding: 32px 20px; }
+
+      .login span { display: none; }
+
+      .footer-columns {
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+
+      .footer-col {
+        padding-left: 0;
+        border-left: none;
+        padding-top: 16px;
+        border-top: 1px solid #d0d0d0;
+      }
+
+      .footer-col:first-child {
+        padding-top: 0;
+        border-top: none;
+      }
+    }
   </style>
 </head>
 <body>
-  <div class="spinner" id="spinner"></div>
-  <h1 id="title">Abrindo o app...</h1>
-  <p id="subtitle">Se não abrir automaticamente, toque na opção abaixo</p>
+  <header class="header">
+    <div class="header-inner">
+      <a class="logo" href="https://www.metlife.com.br/" aria-label="MetLife Brasil">
+        <svg class="logo-mark" viewBox="0 0 48 48" aria-hidden="true">
+          <path fill="#0090da" d="M4 38V10l16 10v18H4z"/>
+          <path fill="#a4ce4e" d="M44 38V10L28 20v18h16z"/>
+          <path fill="#0090da" d="M20 20l4 2.5L28 20v18h-8V20z" opacity="0.85"/>
+        </svg>
+        <span class="logo-wordmark">MetLife</span>
+      </a>
 
-  <div class="buttons">
-    <a class="btn" id="androidBtn" href="https://play.google.com/store/apps/details?id=com.metlife.brazil.business.css&hl=pt_BR">
-      Baixar na Google Play
-    </a>
-    <a class="btn" id="iosBtn" href="https://apps.apple.com/br/app/metlife-brasil/id1625752674">
-      Baixar na App Store
-    </a>
-  </div>
+      <button class="menu-toggle" id="menuToggle" aria-label="Abrir menu" aria-expanded="false">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 7h16M4 12h16M4 17h16"/>
+        </svg>
+      </button>
+
+      <ul class="nav" id="mainNav">
+        <li><a href="https://www.metlife.com.br/#panel">Para você <span class="caret" aria-hidden="true"></span></a></li>
+        <li><a href="https://www.metlife.com.br/para-empresas/">Para empresas <span class="caret" aria-hidden="true"></span></a></li>
+        <li><a href="https://www.metlife.com.br/atendimento/">Atendimento <span class="caret" aria-hidden="true"></span></a></li>
+        <li><a href="https://www.metlife.com.br/sobre-a-metlife/">Sobre nós <span class="caret" aria-hidden="true"></span></a></li>
+        <li><a href="https://www.metlife.com.br/parceiros/">Parceiros <span class="caret" aria-hidden="true"></span></a></li>
+      </ul>
+
+      <div class="header-actions">
+        <a class="login" href="https://login.metlife.com.br/login/dynamic/Login.action">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <circle cx="12" cy="8" r="3.5"/>
+            <path d="M5 19.5c1.8-3.2 4.2-4.8 7-4.8s5.2 1.6 7 4.8"/>
+          </svg>
+          <span>Entrar</span>
+        </a>
+        <button class="icon-btn" type="button" aria-label="Buscar" onclick="window.open('https://www.metlife.com.br/', '_blank')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="7"/>
+            <path d="M20 20l-3.5-3.5"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="header-accent" aria-hidden="true"></div>
+  </header>
+
+  <main class="main">
+    <div class="main-inner">
+      <div class="status" id="status">Abrindo o aplicativo MetLife…</div>
+      <h1 class="page-title">Baixe o aplicativo</h1>
+
+      <div class="download-panel">
+        <a
+          class="download-option"
+          id="iosBtn"
+          href="https://apps.apple.com/br/app/metlife-brasil/id1625752674"
+          aria-label="Baixar para iOS"
+        >
+          <svg class="store-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="currentColor" d="M16.7 12.6c0-2.2 1.8-3.3 1.9-3.4-1-1.5-2.6-1.7-3.2-1.7-1.3-.1-2.6.8-3.3.8-.7 0-1.8-.8-3-.7-1.5.1-2.9.9-3.7 2.3-1.6 2.8-.4 6.9 1.1 9.1.8 1.1 1.7 2.3 2.9 2.2 1.2-.1 1.6-.7 3-.7s1.8.7 3 .7c1.3 0 2.1-1.1 2.9-2.2.9-1.3 1.3-2.5 1.3-2.6-.1 0-2.5-1-2.5-3.8zM14.4 5.9c.6-.8 1.1-1.9.9-3-1 .1-2.1.7-2.8 1.5-.6.7-1.1 1.8-.9 2.9 1.1.1 2.1-.5 2.8-1.4z"/>
+          </svg>
+          <div class="download-label">
+            Baixar para
+            <span>(IOS)</span>
+          </div>
+        </a>
+
+        <a
+          class="download-option"
+          id="androidBtn"
+          href="https://play.google.com/store/apps/details?id=com.metlife.brazil.business.css&hl=pt_BR"
+          aria-label="Baixar para Android"
+        >
+          <svg class="store-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="currentColor" d="M17.6 9.5l1.9-3.3a.5.5 0 0 0-.2-.7.5.5 0 0 0-.7.2l-1.9 3.3A10.3 10.3 0 0 0 12 8a10.3 10.3 0 0 0-4.7 1l-1.9-3.3a.5.5 0 1 0-.9.5L6.4 9.5A9.9 9.9 0 0 0 3 17.5h18a9.9 9.9 0 0 0-3.4-8zM9 15.2a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm6 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/>
+          </svg>
+          <div class="download-label">
+            Baixar para
+            <span>(Android)</span>
+          </div>
+        </a>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <a class="logo footer-logo" href="https://www.metlife.com.br/" aria-label="MetLife Brasil">
+        <svg class="logo-mark" viewBox="0 0 48 48" aria-hidden="true">
+          <path fill="#0090da" d="M4 38V10l16 10v18H4z"/>
+          <path fill="#a4ce4e" d="M44 38V10L28 20v18h16z"/>
+          <path fill="#0090da" d="M20 20l4 2.5L28 20v18h-8V20z" opacity="0.85"/>
+        </svg>
+        <span class="logo-wordmark">MetLife</span>
+      </a>
+
+      <div class="footer-columns">
+        <div class="footer-col">
+          <h3>Suporte</h3>
+          <ul>
+            <li><a href="https://www.metlife.com.br/atendimento/">Encontre um Dentista</a></li>
+            <li><a href="https://www.metlife.com.br/atendimento/">Central de Ajuda</a></li>
+            <li><a href="https://www.metlife.com.br/atendimento/">Fale Conosco</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Sobre Nós</h3>
+          <ul>
+            <li><a href="https://www.metlife.com.br/sobre-a-metlife/">Sobre a MetLife</a></li>
+            <li><a href="https://www.metlife.com.br/sobre-a-metlife/">Carreiras</a></li>
+            <li><a href="https://www.metlife.com.br/politica-de-privacidade/">Privacidade</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3 class="uppercase">Soluções Individuais</h3>
+          <ul>
+            <li><a href="https://www.metlife.com.br/para-empresas/">Pequenas e Médias Empresas</a></li>
+            <li><a href="https://www.metlife.com.br/#panel">Para Você</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      © MetLife Brasil. Todos os direitos reservados.
+    </div>
+  </footer>
 
   <script>
     const APP_SCHEME = "cssapp://home";
-
     const ANDROID_PACKAGE = "com.metlife.brazil.business.css";
     const ANDROID_STORE = "https://play.google.com/store/apps/details?id=com.metlife.brazil.business.css&hl=pt_BR";
     const IOS_STORE = "https://apps.apple.com/br/app/metlife-brasil/id1625752674";
@@ -77,8 +543,16 @@
     const isAndroid = /android/i.test(ua);
     const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
 
+    const menuToggle = document.getElementById("menuToggle");
+    const mainNav = document.getElementById("mainNav");
+    const statusEl = document.getElementById("status");
+
+    menuToggle.addEventListener("click", () => {
+      const open = mainNav.classList.toggle("is-open");
+      menuToggle.setAttribute("aria-expanded", String(open));
+    });
+
     function buildAndroidIntent(scheme) {
-      // Chrome Android: tenta abrir o app; se não estiver instalado, cai na Play Store
       const path = scheme.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "").replace(/^\/+/, "") || "open";
       const schemeName = (scheme.match(/^([a-z][a-z0-9+.-]*):/i) || [])[1] || "https";
       return (
@@ -110,6 +584,10 @@
       }, 1800);
     }
 
+    if (isAndroid || isIOS) {
+      statusEl.classList.add("is-visible");
+    }
+
     if (isAndroid) {
       if (APP_SCHEME) {
         openAppOrStore(buildAndroidIntent(APP_SCHEME), ANDROID_STORE);
@@ -122,10 +600,6 @@
       } else {
         window.location.href = IOS_STORE;
       }
-    } else {
-      document.getElementById("spinner").style.display = "none";
-      document.getElementById("title").textContent = "Escolha sua loja";
-      document.getElementById("subtitle").textContent = "Detectamos que você está no computador";
     }
   </script>
 </body>
