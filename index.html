@@ -74,92 +74,128 @@
   </div>
 
   <script>
-  (function () {
+  (() => {
     "use strict";
 
-    var APP_SCHEME      = "cssapp://home";
-    var ANDROID_PACKAGE = "com.metlife.brazil.business.css";
-    var ANDROID_STORE   = "https://play.google.com/store/apps/details?id=" + ANDROID_PACKAGE + "&hl=pt_BR";
-    var IOS_STORE       = "https://apps.apple.com/br/app/metlife-brasil/id1625752674";
+    /* ─────────── config ─────────── */
+    const APP = {
+      scheme: "cssapp",
+      path: "home",
+      android: {
+        pkg: "com.metlife.brazil.business.css",
+        store: "https://play.google.com/store/apps/details?id=com.metlife.brazil.business.css&hl=pt_BR"
+      },
+      ios: { store: "https://apps.apple.com/br/app/metlife-brasil/id1625752674" },
+      delay: 2000,
+      flag: "css:redirected"
+    };
 
-    var ua        = navigator.userAgent || navigator.vendor || window.opera || "";
-    var isAndroid = /android/i.test(ua);
-    var isIOS     = (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) ||
-                    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const COPY = {
+      fail:    { t: "Não conseguimos abrir o app", s: "Talvez ele não esteja instalado neste celular.", c: "Tentar abrir novamente" },
+      desktop: { t: "Escolha sua loja",            s: "Detectamos que você está no computador" },
+      inapp:   { t: "Abra no navegador",           s: "Toque no menu (•••) e escolha “Abrir no navegador” para continuar.", c: "Abrir o app" }
+    };
 
-    var spinner    = document.getElementById("spinner");
-    var title      = document.getElementById("title");
-    var subtitle   = document.getElementById("subtitle");
-    var openBtn    = document.getElementById("openBtn");
-    var androidBtn = document.getElementById("androidBtn");
-    var iosBtn     = document.getElementById("iosBtn");
+    /* ─────────── dom (tolerante a falhas) ─────────── */
+    const $ = (id) => document.getElementById(id);
+    const ui = {
+      spinner: $("spinner"), title: $("title"), subtitle: $("subtitle"),
+      open: $("openBtn"), android: $("androidBtn"), ios: $("iosBtn")
+    };
+    const show = (n, on) => n && n.classList.toggle("hidden", !on);
+    const say  = (n, v)  => { if (n) n.textContent = v; };
 
-    function buildAndroidIntent(scheme) {
-      var m = scheme.match(/^([a-z][a-z0-9+.\-]*):\/\/(.*)$/i) || [];
-      var schemeName = m[1] || "https";
-      var path = (m[2] || "").replace(/^\/+/, "") || "open";
-      return "intent://" + path +
-             "#Intent;scheme=" + schemeName +
-             ";package=" + ANDROID_PACKAGE +
-             ";S.browser_fallback_url=" + encodeURIComponent(ANDROID_STORE) +
-             ";end";
+    /* ─────────── plataforma ─────────── */
+    const ua = navigator.userAgent || "";
+    const isAndroid = /android/i.test(ua);
+    const isIOS = /iP(?:hone|ad|od)/.test(ua) ||
+                  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    // WebViews que sabotam deep links
+    const isInApp = /\b(FBAN|FBAV|FB_IAB|Instagram|Line|MicroMessenger|LinkedInApp|Snapchat|Twitter)\b/i.test(ua);
+
+    /* ─────────── urls ─────────── */
+    const deepLink = `${APP.scheme}://${APP.path}${location.search}`;
+
+    const intentUrl = [
+      `intent://${APP.path}${location.search}`,
+      "#Intent",
+      `scheme=${APP.scheme}`,
+      `package=${APP.android.pkg}`,
+      `S.browser_fallback_url=${encodeURIComponent(APP.android.store)}`,
+      "end"
+    ].join(";").replace("#Intent;;", "#Intent;"); // junta limpo
+
+    /* ─────────── "saiu da página" ─────────── */
+    const ac = new AbortController();
+    const opt = { signal: ac.signal, passive: true };
+    let left = false;
+    const markLeft = () => { left = true; ac.abort(); };
+
+    document.addEventListener("visibilitychange", () => document.hidden && markLeft(), opt);
+    window.addEventListener("pagehide", markLeft, opt);   // 'blur' removido: falso positivo
+
+    /* ─────────── estados de UI ─────────── */
+    const renderFail = (storeBtn) => {
+      if (left || document.hidden) return;
+      show(ui.spinner, false);
+      say(ui.title, COPY.fail.t);
+      say(ui.subtitle, COPY.fail.s);
+      say(ui.open, COPY.fail.c);
+      show(ui.open, true);
+      show(storeBtn, true);
+    };
+
+    const renderDesktop = () => {
+      show(ui.spinner, false);
+      say(ui.title, COPY.desktop.t);
+      say(ui.subtitle, COPY.desktop.s);
+      show(ui.open, false);
+      show(ui.android, true);
+      show(ui.ios, true);
+    };
+
+    const renderInApp = (href, storeBtn) => {
+      show(ui.spinner, false);
+      say(ui.title, COPY.inapp.t);
+      say(ui.subtitle, COPY.inapp.s);
+      say(ui.open, COPY.inapp.c);
+      ui.open?.setAttribute("href", href);
+      show(ui.open, true);
+      show(storeBtn, true);
+    };
+
+    /* ─────────── fluxo ─────────── */
+    // evita loop ao voltar do app / botão "voltar"
+    const alreadyTried = sessionStorage.getItem(APP.flag) === "1";
+    const arm = () => { try { sessionStorage.setItem(APP.flag, "1"); } catch {} };
+
+    if (isAndroid) {
+      ui.open?.setAttribute("href", intentUrl);
+      show(ui.android, true);
+
+      if (isInApp)      return renderInApp(intentUrl, ui.android);   // WebView: só com tap
+      if (alreadyTried) return renderFail(ui.android);               // 2ª visita: mostra opções
+
+      arm();
+      location.replace(intentUrl);                                    // Chrome cuida do fallback
+      return;
     }
 
-    // ---------- estado de "saiu da pagina" ----------
-    var left = false;
-    function markLeft() { left = true; }
-    document.addEventListener("visibilitychange", function () {
-      if (document.hidden) markLeft();
-    });
-    window.addEventListener("pagehide", markLeft);
-    window.addEventListener("blur", markLeft);
+    if (isIOS) {
+      ui.open?.setAttribute("href", deepLink);
+      show(ui.ios, true);
 
-    function gaveUp(storeBtn) {
-      spinner.classList.add("hidden");
-      title.textContent = "Nao conseguimos abrir o app";
-      subtitle.textContent = "Talvez ele nao esteja instalado neste celular.";
-      openBtn.textContent = "Tentar abrir novamente";
-      if (storeBtn) storeBtn.classList.remove("hidden");
+      if (isInApp || alreadyTried) return renderInApp(deepLink, ui.ios);
+
+      arm();
+      location.replace(deepLink);
+
+      const timer = setTimeout(() => renderFail(ui.ios), APP.delay);
+      ac.signal.addEventListener("abort", () => clearTimeout(timer), { once: true });
+      return;
     }
 
-    function run() {
-      // ---------------- ANDROID ----------------
-      if (isAndroid) {
-        var intentUrl = buildAndroidIntent(APP_SCHEME);
-        openBtn.setAttribute("href", intentUrl);
-        androidBtn.classList.remove("hidden");
-
-        window.location.replace(intentUrl);
-        return;
-      }
-
-      // ---------------- iOS ----------------
-      if (isIOS) {
-        openBtn.setAttribute("href", APP_SCHEME);
-
-        var TIMEOUT = 2500;
-        var start = Date.now();
-
-        window.location.replace(APP_SCHEME);
-
-        setTimeout(function () {
-          var drift = Date.now() - start;
-          if (left || document.hidden || drift > TIMEOUT + 400) return;
-          gaveUp(iosBtn);
-        }, TIMEOUT);
-        return;
-      }
-
-      // ---------------- DESKTOP ----------------
-      spinner.classList.add("hidden");
-      title.textContent = "Escolha sua loja";
-      subtitle.textContent = "Detectamos que voce esta no computador";
-      openBtn.classList.add("hidden");
-      androidBtn.classList.remove("hidden");
-      iosBtn.classList.remove("hidden");
-    }
-
-    run();
+    renderDesktop();
   })();
   </script>
 </body>
