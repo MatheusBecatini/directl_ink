@@ -12,55 +12,54 @@
   <meta property="og:type" content="website">
 
   <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: #fff;
-  color: #333;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 24px;
-}
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid rgba(0, 122, 188, 0.25);
-  border-top-color: #007ABC;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  margin-bottom: 24px;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-h1 { font-size: 20px; margin-bottom: 8px; font-weight: 600; }
-p { font-size: 14px; opacity: 0.85; margin-bottom: 32px; }
-.buttons { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 320px; }
-.btn {
-  display: block;
-  background: transparent;
-  color: #007ABC;
-  padding: 14px 20px;
-  border-radius: 10px;
-  border: 1.5px solid #007ABC;
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 15px;
-  transition: transform 0.15s ease;
-}
-.btn.secondary {
-  background: transparent;
-  color: #007ABC;
-  border: 1.5px solid #007ABC;
-}
-.btn:active { transform: scale(0.97); }
-.hidden { display: none !important; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #00857C;
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 24px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    h1 { font-size: 20px; margin-bottom: 8px; font-weight: 600; }
+    p { font-size: 14px; opacity: 0.85; margin-bottom: 32px; }
+    .buttons { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 320px; }
+    .btn {
+      display: block;
+      background: #fff;
+      color: #00857C;
+      padding: 14px 20px;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 15px;
+      transition: transform 0.15s ease;
+    }
+    .btn.secondary {
+      background: transparent;
+      color: #fff;
+      border: 1.5px solid rgba(255,255,255,0.6);
+    }
+    .btn:active { transform: scale(0.97); }
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
-<div class="spinner" id="spinner"></div>
+  <div class="spinner" id="spinner"></div>
   <h1 id="title">Abrindo o app...</h1>
   <p id="subtitle">Se não abrir automaticamente, toque na opção abaixo</p>
 
@@ -74,11 +73,10 @@ p { font-size: 14px; opacity: 0.85; margin-bottom: 32px; }
     </a>
   </div>
 
-<script>
+  <script>
   (() => {
     "use strict";
 
-    /* ─────────── config ─────────── */
     const APP = {
       scheme: "cssapp",
       path: "home",
@@ -88,7 +86,8 @@ p { font-size: 14px; opacity: 0.85; margin-bottom: 32px; }
       },
       ios: { store: "https://apps.apple.com/br/app/metlife-brasil/id1625752674" },
       delay: 2000,
-      flag: "css:redirected"
+      flag: "css:lastTry",
+      cooldown: 8000            // "acabou de tentar" só vale por 8s
     };
 
     const COPY = {
@@ -97,7 +96,6 @@ p { font-size: 14px; opacity: 0.85; margin-bottom: 32px; }
       inapp:   { t: "Abra no navegador",           s: "Toque no menu (•••) e escolha “Abrir no navegador” para continuar.", c: "Abrir o app" }
     };
 
-    /* ─────────── dom (tolerante a falhas) ─────────── */
     const $ = (id) => document.getElementById(id);
     const ui = {
       spinner: $("spinner"), title: $("title"), subtitle: $("subtitle"),
@@ -106,42 +104,63 @@ p { font-size: 14px; opacity: 0.85; margin-bottom: 32px; }
     const show = (n, on) => n && n.classList.toggle("hidden", !on);
     const say  = (n, v)  => { if (n) n.textContent = v; };
 
-    /* ─────────── plataforma ─────────── */
+    /* ─── plataforma ─── */
     const ua = navigator.userAgent || "";
+
+    // navegadores DE VERDADE: nunca tratar como WebView
+    const isRealBrowser = /\b(CriOS|FxiOS|EdgiOS|OPiOS|OPT|SamsungBrowser|DuckDuckGo|Brave)\b/.test(ua);
+
+    // WebViews que sabotam deep links — tokens explícitos, não palavras soltas
+    const isInApp = !isRealBrowser && (
+      /FBAN|FBAV|FB_IAB|FBIOS|Instagram|MicroMessenger|LinkedInApp|Snapchat|Pinterest/.test(ua) ||
+      /\bLine\//.test(ua) ||
+      /Twitter for/.test(ua) ||
+      /;\s*wv\)/.test(ua)      // Android System WebView genérica
+    );
+
     const isAndroid = /android/i.test(ua);
     const isIOS = /iP(?:hone|ad|od)/.test(ua) ||
                   (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-    // WebViews que sabotam deep links
-    const isInApp = /\b(FBAN|FBAV|FB_IAB|Instagram|Line|MicroMessenger|LinkedInApp|Snapchat|Twitter)\b/i.test(ua);
 
-    /* ─────────── urls ─────────── */
+    /* ─── urls ─── */
     const deepLink = `${APP.scheme}://${APP.path}${location.search}`;
+    const intentUrl = `intent://${APP.path}${location.search}#Intent` +
+      `;scheme=${APP.scheme};package=${APP.android.pkg}` +
+      `;S.browser_fallback_url=${encodeURIComponent(APP.android.store)};end`;
 
-    const intentUrl = [
-      `intent://${APP.path}${location.search}`,
-      "#Intent",
-      `scheme=${APP.scheme}`,
-      `package=${APP.android.pkg}`,
-      `S.browser_fallback_url=${encodeURIComponent(APP.android.store)}`,
-      "end"
-    ].join(";").replace("#Intent;;", "#Intent;"); // junta limpo
+    /* ─── flag com validade ─── */
+    const read  = () => Number(sessionStorage.getItem(APP.flag) || 0);
+    const arm   = () => { try { sessionStorage.setItem(APP.flag, String(Date.now())); } catch {} };
+    const clear = () => { try { sessionStorage.removeItem(APP.flag); } catch {} };
+    const justTried = Date.now() - read() < APP.cooldown;
 
-    /* ─────────── "saiu da página" ─────────── */
+    /* ─── saiu da página ─── */
     const ac = new AbortController();
     const opt = { signal: ac.signal, passive: true };
     let left = false;
-    const markLeft = () => { left = true; ac.abort(); };
-
+    const markLeft = () => { left = true; clear(); ac.abort(); };  // abriu o app: limpa o flag
     document.addEventListener("visibilitychange", () => document.hidden && markLeft(), opt);
-    window.addEventListener("pagehide", markLeft, opt);   // 'blur' removido: falso positivo
+    window.addEventListener("pagehide", markLeft, opt);
 
-    /* ─────────── estados de UI ─────────── */
-    const renderFail = (storeBtn) => {
+    /* ─── telas ─── */
+    const renderFail = (href, storeBtn) => {
       if (left || document.hidden) return;
+      clear();                                  // próxima tentativa é limpa
       show(ui.spinner, false);
       say(ui.title, COPY.fail.t);
       say(ui.subtitle, COPY.fail.s);
       say(ui.open, COPY.fail.c);
+      ui.open?.setAttribute("href", href);
+      show(ui.open, true);
+      show(storeBtn, true);
+    };
+
+    const renderInApp = (href, storeBtn) => {
+      show(ui.spinner, false);
+      say(ui.title, COPY.inapp.t);
+      say(ui.subtitle, COPY.inapp.s);
+      say(ui.open, COPY.inapp.c);
+      ui.open?.setAttribute("href", href);
       show(ui.open, true);
       show(storeBtn, true);
     };
@@ -155,49 +174,29 @@ p { font-size: 14px; opacity: 0.85; margin-bottom: 32px; }
       show(ui.ios, true);
     };
 
-    const renderInApp = (href, storeBtn) => {
-      show(ui.spinner, false);
-      say(ui.title, COPY.inapp.t);
-      say(ui.subtitle, COPY.inapp.s);
-      say(ui.open, COPY.inapp.c);
-      ui.open?.setAttribute("href", href);
-      show(ui.open, true);
-      show(storeBtn, true);
-    };
-
-    /* ─────────── fluxo ─────────── */
-    // evita loop ao voltar do app / botão "voltar"
-    const alreadyTried = sessionStorage.getItem(APP.flag) === "1";
-    const arm = () => { try { sessionStorage.setItem(APP.flag, "1"); } catch {} };
-
+    /* ─── fluxo ─── */
     if (isAndroid) {
-      ui.open?.setAttribute("href", intentUrl);
       show(ui.android, true);
-
-      if (isInApp)      return renderInApp(intentUrl, ui.android);   // WebView: só com tap
-      if (alreadyTried) return renderFail(ui.android);               // 2ª visita: mostra opções
-
+      if (isInApp)    return renderInApp(intentUrl, ui.android);
+      if (justTried)  return renderFail(intentUrl, ui.android);   // ← estado separado
       arm();
-      location.replace(intentUrl);                                    // Chrome cuida do fallback
+      location.replace(intentUrl);
       return;
     }
 
     if (isIOS) {
-      ui.open?.setAttribute("href", deepLink);
       show(ui.ios, true);
-
-      if (isInApp || alreadyTried) return renderInApp(deepLink, ui.ios);
-
+      if (isInApp)    return renderInApp(deepLink, ui.ios);
+      if (justTried)  return renderFail(deepLink, ui.ios);        // ← era renderInApp: o bug
       arm();
       location.replace(deepLink);
-
-      const timer = setTimeout(() => renderFail(ui.ios), APP.delay);
+      const timer = setTimeout(() => renderFail(deepLink, ui.ios), APP.delay);
       ac.signal.addEventListener("abort", () => clearTimeout(timer), { once: true });
       return;
     }
 
     renderDesktop();
   })();
-</script>
+  </script>
 </body>
 </html>
