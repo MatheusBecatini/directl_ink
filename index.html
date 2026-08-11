@@ -12,68 +12,168 @@
   <meta property="og:type" content="website">
 
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #00857C;
-      color: #fff;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 24px;
-    }
-    .spinner {
-      width: 40px;
-      height: 40px;
-      border: 4px solid rgba(255,255,255,0.3);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin-bottom: 24px;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    h1 { font-size: 20px; margin-bottom: 8px; font-weight: 600; }
-    p { font-size: 14px; opacity: 0.85; margin-bottom: 32px; }
-    .buttons { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 320px; }
-    .btn {
-      display: block;
-      background: #fff;
-      color: #00857C;
-      padding: 14px 20px;
-      border-radius: 10px;
-      text-decoration: none;
-      font-weight: 600;
-      font-size: 15px;
-      transition: transform 0.15s ease;
-    }
-    .btn.secondary {
-      background: transparent;
-      color: #fff;
-      border: 1.5px solid rgba(255,255,255,0.6);
-    }
-    .btn:active { transform: scale(0.97); }
-    .hidden { display: none !important; }
+/* Fallbacks for local test (on AEM these come from global CSS) */
+@font-face {
+  font-family: 'MetLifeCircular';
+  src: url('https://www.metlife.com.br/content/dam/globalMarketingPlatformAssets/fonts/MetLifeCircular/MetLifeCircular-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'MetLifeCircular';
+  src: url('https://www.metlife.com.br/content/dam/globalMarketingPlatformAssets/fonts/MetLifeCircular/MetLifeCircular-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+body {
+  margin: 0;
+  background: #fff;
+  color: #333;
+  font-family: 'Noto Sans', Arial, Helvetica, sans-serif;
+}
+.hidden { display: none !important; }
+.font-header-4 {
+  font-family: 'MetLifeCircular', Arial, Helvetica, sans-serif;
+  font-weight: 500;
+  font-size: 24px;
+  line-height: 30px;
+  letter-spacing: -0.54px;
+}
+.font-body-1 {
+  font-family: 'Noto Sans', Arial, Helvetica, sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 30px;
+  letter-spacing: -0.16px;
+}
+.btn-brand-1st,
+.btn-brand-3rd {
+  font-family: 'Noto Sans', Arial, Helvetica, sans-serif;
+  font-weight: 600;
+  line-height: 24px;
+  font-size: 16px;
+  display: inline-block;
+  width: auto;
+  min-width: 40px;
+  text-align: center;
+  border: 0 solid transparent;
+  border-radius: 8px;
+  padding: 16px 24px;
+  margin: 0 auto;
+  text-decoration: none;
+  height: 54px;
+  box-sizing: border-box;
+}
+.btn-brand-1st { color: #fff; background-color: #007abc; }
+.btn-brand-1st:hover,
+.btn-brand-1st:focus,
+.btn-brand-1st:active { color: #fff; background-color: #0061a0; }
+.btn-brand-3rd {
+  color: #007abc;
+  background-color: #fff;
+  border: solid 2px #007abc;
+  padding: 14px 22px;
+}
+.btn-brand-3rd:hover,
+.btn-brand-3rd:focus,
+.btn-brand-3rd:active {
+  color: #fff;
+  border: solid 2px #0061a0;
+  background-color: #0061a0;
+}
+.ml-app-redirect { min-height: 100vh; }
+
+/* Layout only — buttons/type/hidden reuse site classes (btn-brand-*, font-*, .hidden) */
+.ml-app-redirect {
+  box-sizing: border-box;
+  background: #fff;
+  color: #333;
+  min-height: 50vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px 24px;
+}
+.ml-app-redirect *,
+.ml-app-redirect *::before,
+.ml-app-redirect *::after { box-sizing: border-box; }
+.ml-app-redirect__buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 320px;
+  margin-top: 8px;
+}
+.ml-app-redirect__buttons .btn-brand-1st,
+.ml-app-redirect__buttons .btn-brand-3rd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 100%;
+}
+/* Ícones das lojas (DAM Encontrar um Dentista) — 20×20, gap 8px */
+.ml-app-redirect__btn-icon {
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+  flex: 0 0 auto;
+}
+/* Hover claro: SVGs têm fill #0061A0 fixo e somem em fundo azul */
+.ml-app-redirect__buttons .btn-brand-3rd:hover,
+.ml-app-redirect__buttons .btn-brand-3rd:focus,
+.ml-app-redirect__buttons .btn-brand-3rd:active {
+  color: #0061a0;
+  background-color: #f2f2f2;
+  border-color: #0061a0;
+}
+.ml-app-redirect #title { margin: 0 0 8px; color: #333; }
+.ml-app-redirect #subtitle { margin: 0 0 32px; color: #75787b; }
+.ml-app-redirect .spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(0, 122, 188, 0.25);
+  border-top-color: #007abc;
+  border-radius: 50%;
+  animation: ml-app-spin 0.8s linear infinite;
+  margin-bottom: 24px;
+}
+@keyframes ml-app-spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
-  <div class="spinner" id="spinner"></div>
-  <h1 id="title">Abrindo o app...</h1>
-  <p id="subtitle">Se não abrir automaticamente, toque na opção abaixo</p>
+<section class="ml-app-redirect" aria-live="polite">
+  <div class="spinner" id="spinner" aria-hidden="true"></div>
+  <h1 class="font-header-4" id="title">Abrindo o app...</h1>
+  <p class="font-body-1" id="subtitle">Se não abrir automaticamente, toque na opção abaixo</p>
 
-  <div class="buttons">
-    <a class="btn" id="openBtn" href="#">Abrir o app</a>
-    <a class="btn secondary hidden" id="androidBtn" href="https://play.google.com/store/apps/details?id=com.metlife.brazil.business.css&hl=pt_BR">
-      Baixar na Google Play
+  <div class="ml-app-redirect__buttons">
+    <a class="btn-brand-1st" id="openBtn" href="#">Abrir o app</a>
+    <a class="btn-brand-3rd hidden" id="iosBtn" href="https://apps.apple.com/br/app/metlife-brasil/id1625752674">
+      <img
+        class="ml-app-redirect__btn-icon"
+        src="https://www.metlife.com.br/content/dam/metlifecom/br/homepage/images/individual/planos-odontologicos/encontrare-um-dentista/icons/IOS.svg"
+        alt=""
+        aria-hidden="true"
+      /><span>Baixar na App Store</span>
     </a>
-    <a class="btn secondary hidden" id="iosBtn" href="https://apps.apple.com/br/app/metlife-brasil/id1625752674">
-      Baixar na App Store
+    <a class="btn-brand-3rd hidden" id="androidBtn" href="https://play.google.com/store/apps/details?id=com.metlife.brazil.business.css&hl=pt_BR">
+      <img
+        class="ml-app-redirect__btn-icon"
+        src="https://www.metlife.com.br/content/dam/metlifecom/br/homepage/images/individual/planos-odontologicos/encontrare-um-dentista/icons/Android.svg"
+        alt=""
+        aria-hidden="true"
+      /><span>Baixar na Google Play</span>
     </a>
   </div>
+</section>
 
-  <script>
+<script>
   (() => {
     "use strict";
 
@@ -197,6 +297,6 @@
 
     renderDesktop();
   })();
-  </script>
+</script>
 </body>
 </html>
