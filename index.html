@@ -177,125 +177,75 @@ body {
   (() => {
     "use strict";
 
-    const APP = {
-      scheme: "cssapp",
-      path: "home",
-      android: {
-        pkg: "com.metlife.brazil.business.css",
-        store: "https://play.google.com/store/apps/details?id=com.metlife.brazil.business.css&hl=pt_BR"
-      },
-      ios: { store: "https://apps.apple.com/br/app/metlife-brasil/id1625752674" },
-      delay: 2000,
-      flag: "css:lastTry",
-      cooldown: 8000            // "acabou de tentar" só vale por 8s
-    };
-
-    const COPY = {
-      fail:    { t: "Não conseguimos abrir o app", s: "Talvez ele não esteja instalado neste celular.", c: "Tentar abrir novamente" },
-      desktop: { t: "Escolha sua loja",            s: "Detectamos que você está no computador" },
-      inapp:   { t: "Abra no navegador",           s: "Toque no menu (•••) e escolha “Abrir no navegador” para continuar.", c: "Abrir o app" }
-    };
+    const APP_SCHEME = "cssapp://home";
+    const ANDROID_PACKAGE = "com.metlife.brazil.business.css";
+    const ANDROID_STORE = "https://play.google.com/store/apps/details?id=com.metlife.brazil.business.css&hl=pt_BR";
+    const IOS_STORE = "https://apps.apple.com/br/app/metlife-brasil/id1625752674";
+    const FALLBACK_MS = 1800;
 
     const $ = (id) => document.getElementById(id);
     const ui = {
-      spinner: $("spinner"), title: $("title"), subtitle: $("subtitle"),
-      open: $("openBtn"), android: $("androidBtn"), ios: $("iosBtn")
+      spinner: $("spinner"),
+      title: $("title"),
+      subtitle: $("subtitle"),
+      open: $("openBtn"),
+      android: $("androidBtn"),
+      ios: $("iosBtn")
     };
     const show = (n, on) => n && n.classList.toggle("hidden", !on);
-    const say  = (n, v)  => { if (n) n.textContent = v; };
 
-    /* ─── plataforma ─── */
-    const ua = navigator.userAgent || "";
-
-    // navegadores DE VERDADE: nunca tratar como WebView
-    const isRealBrowser = /\b(CriOS|FxiOS|EdgiOS|OPiOS|OPT|SamsungBrowser|DuckDuckGo|Brave)\b/.test(ua);
-
-    // WebViews que sabotam deep links — tokens explícitos, não palavras soltas
-    const isInApp = !isRealBrowser && (
-      /FBAN|FBAV|FB_IAB|FBIOS|Instagram|MicroMessenger|LinkedInApp|Snapchat|Pinterest/.test(ua) ||
-      /\bLine\//.test(ua) ||
-      /Twitter for/.test(ua) ||
-      /;\s*wv\)/.test(ua)      // Android System WebView genérica
-    );
-
+    const ua = navigator.userAgent || navigator.vendor || window.opera || "";
     const isAndroid = /android/i.test(ua);
     const isIOS = /iP(?:hone|ad|od)/.test(ua) ||
-                  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
-    /* ─── urls ─── */
-    const deepLink = `${APP.scheme}://${APP.path}${location.search}`;
-    const intentUrl = `intent://${APP.path}${location.search}#Intent` +
-      `;scheme=${APP.scheme};package=${APP.android.pkg}` +
-      `;S.browser_fallback_url=${encodeURIComponent(APP.android.store)};end`;
+    const deepLink = APP_SCHEME + (location.search || "");
+    const intentUrl =
+      "intent://home" + (location.search || "") +
+      "#Intent;scheme=cssapp;package=" + ANDROID_PACKAGE +
+      ";S.browser_fallback_url=" + encodeURIComponent(ANDROID_STORE) + ";end";
 
-    /* ─── flag com validade ─── */
-    const read  = () => Number(sessionStorage.getItem(APP.flag) || 0);
-    const arm   = () => { try { sessionStorage.setItem(APP.flag, String(Date.now())); } catch {} };
-    const clear = () => { try { sessionStorage.removeItem(APP.flag); } catch {} };
-    const justTried = Date.now() - read() < APP.cooldown;
+    function openAppOrStore(appUrl, storeUrl) {
+      let appLikelyOpened = false;
+      const markOpened = () => { appLikelyOpened = true; };
 
-    /* ─── saiu da página ─── */
-    const ac = new AbortController();
-    const opt = { signal: ac.signal, passive: true };
-    let left = false;
-    const markLeft = () => { left = true; clear(); ac.abort(); };  // abriu o app: limpa o flag
-    document.addEventListener("visibilitychange", () => document.hidden && markLeft(), opt);
-    window.addEventListener("pagehide", markLeft, opt);
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) markOpened();
+      });
+      window.addEventListener("pagehide", markOpened);
+      window.addEventListener("blur", markOpened);
 
-    /* ─── telas ─── */
-    const renderFail = (href, storeBtn) => {
-      if (left || document.hidden) return;
-      clear();                                  // próxima tentativa é limpa
-      show(ui.spinner, false);
-      say(ui.title, COPY.fail.t);
-      say(ui.subtitle, COPY.fail.s);
-      say(ui.open, COPY.fail.c);
-      ui.open?.setAttribute("href", href);
-      show(ui.open, true);
-      show(storeBtn, true);
-    };
+      window.location.href = appUrl;
 
-    const renderInApp = (href, storeBtn) => {
-      show(ui.spinner, false);
-      say(ui.title, COPY.inapp.t);
-      say(ui.subtitle, COPY.inapp.s);
-      say(ui.open, COPY.inapp.c);
-      ui.open?.setAttribute("href", href);
-      show(ui.open, true);
-      show(storeBtn, true);
-    };
+      setTimeout(() => {
+        if (!appLikelyOpened && !document.hidden) {
+          window.location.href = storeUrl;
+        }
+      }, FALLBACK_MS);
+    }
 
-    const renderDesktop = () => {
-      show(ui.spinner, false);
-      say(ui.title, COPY.desktop.t);
-      say(ui.subtitle, COPY.desktop.s);
+    if (isAndroid) {
       show(ui.open, false);
       show(ui.android, true);
-      show(ui.ios, true);
-    };
-
-    /* ─── fluxo ─── */
-    if (isAndroid) {
-      show(ui.android, true);
-      if (isInApp)    return renderInApp(intentUrl, ui.android);
-      if (justTried)  return renderFail(intentUrl, ui.android);   // ← estado separado
-      arm();
-      location.replace(intentUrl);
+      ui.open?.setAttribute("href", intentUrl);
+      openAppOrStore(intentUrl, ANDROID_STORE);
       return;
     }
 
     if (isIOS) {
+      show(ui.open, false);
       show(ui.ios, true);
-      if (isInApp)    return renderInApp(deepLink, ui.ios);
-      if (justTried)  return renderFail(deepLink, ui.ios);        // ← era renderInApp: o bug
-      arm();
-      location.replace(deepLink);
-      const timer = setTimeout(() => renderFail(deepLink, ui.ios), APP.delay);
-      ac.signal.addEventListener("abort", () => clearTimeout(timer), { once: true });
+      ui.open?.setAttribute("href", deepLink);
+      openAppOrStore(deepLink, IOS_STORE);
       return;
     }
 
-    renderDesktop();
+    show(ui.spinner, false);
+    show(ui.open, false);
+    show(ui.android, true);
+    show(ui.ios, true);
+    ui.title.textContent = "Escolha sua loja";
+    ui.subtitle.textContent = "Detectamos que você está no computador";
   })();
 </script>
 </body>
