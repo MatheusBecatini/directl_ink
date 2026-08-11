@@ -177,7 +177,7 @@ body {
   (() => {
     "use strict";
 
-    const APP_SCHEME = "cssapp://home";
+    const APP_SCHEME = "cssapp://brSelfServiceapp";
     const ANDROID_PACKAGE = "com.metlife.brazil.business.css";
     const ANDROID_STORE = "https://play.google.com/store/apps/details?id=com.metlife.brazil.business.css&hl=pt_BR";
     const IOS_STORE = "https://apps.apple.com/br/app/metlife-brasil/id1625752674";
@@ -205,7 +205,7 @@ body {
     // Intent só com toque do usuário. Sem gesto, o Chrome ignora o app e vai
     // direto no S.browser_fallback_url (por isso parecia "só loja").
     const intentUrl =
-      "intent://home" + (location.search || "") +
+      "intent://brSelfServiceapp" + (location.search || "") +
       "#Intent;scheme=cssapp;package=" + ANDROID_PACKAGE +
       ";S.browser_fallback_url=" + encodeURIComponent(ANDROID_STORE) + ";end";
 
