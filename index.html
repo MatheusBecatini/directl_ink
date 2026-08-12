@@ -124,6 +124,12 @@
 
     /* ─── urls ─── */
     const deepLink = `${APP.scheme}://${APP.path}${location.search}`;
+    // Intent sem fallback: abre o app direto (sem o aviso do cssapp://).
+    // Não usar S.browser_fallback_url no auto-open — sem gesto o Chrome ia
+    // direto pra loja e pulava o app.
+    const intentLaunch = `intent://${APP.path}${location.search}#Intent` +
+      `;scheme=${APP.scheme};package=${APP.android.pkg};end`;
+    // Intent com loja: só no toque do usuário (gesto válido).
     const intentUrl = `intent://${APP.path}${location.search}#Intent` +
       `;scheme=${APP.scheme};package=${APP.android.pkg}` +
       `;S.browser_fallback_url=${encodeURIComponent(APP.android.store)};end`;
@@ -141,6 +147,12 @@
     const markLeft = () => { left = true; clear(); ac.abort(); };  // abriu o app: limpa o flag
     document.addEventListener("visibilitychange", () => document.hidden && markLeft(), opt);
     window.addEventListener("pagehide", markLeft, opt);
+
+    const goToStore = (storeUrl) => {
+      if (left || document.hidden) return;
+      clear();
+      location.replace(storeUrl);
+    };
 
     /* ─── telas ─── */
     const renderFail = (href, storeBtn) => {
@@ -174,17 +186,14 @@
       show(ui.ios, true);
     };
 
-    /* ─── fluxo ─── */
-    // Android: auto-try com custom scheme (sem Intent). Intent só no toque —
-    // sem gesto o Chrome ignora o app e segue S.browser_fallback_url (loja).
-    // Timeout nunca navega sozinho para a loja: só mostra UI de falha + CTAs.
+    /* ─── fluxo padrão: tenta app → se falhar, loja ─── */
     if (isAndroid) {
       show(ui.android, true);
       if (isInApp)    return renderInApp(intentUrl, ui.android);
       if (justTried)  return renderFail(intentUrl, ui.android);
       arm();
-      location.replace(deepLink);
-      const timer = setTimeout(() => renderFail(intentUrl, ui.android), APP.delay);
+      location.replace(intentLaunch);
+      const timer = setTimeout(() => goToStore(APP.android.store), APP.delay);
       ac.signal.addEventListener("abort", () => clearTimeout(timer), { once: true });
       return;
     }
@@ -192,10 +201,10 @@
     if (isIOS) {
       show(ui.ios, true);
       if (isInApp)    return renderInApp(deepLink, ui.ios);
-      if (justTried)  return renderFail(deepLink, ui.ios);        // ← era renderInApp: o bug
+      if (justTried)  return renderFail(deepLink, ui.ios);
       arm();
       location.replace(deepLink);
-      const timer = setTimeout(() => renderFail(deepLink, ui.ios), APP.delay);
+      const timer = setTimeout(() => goToStore(APP.ios.store), APP.delay);
       ac.signal.addEventListener("abort", () => clearTimeout(timer), { once: true });
       return;
     }
