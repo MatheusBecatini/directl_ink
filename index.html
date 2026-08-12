@@ -104,6 +104,7 @@
       delay: 2000,
       iosDelay: 3000,           // iOS: mais tempo para o prompt “Abrir?”
       storeArmDelay: 1000,      // iOS: botão da loja só fica tocável após isso
+      iosStoreGrace: 1500,      // iOS: recheck antes da loja (app pode estar abrindo)
       flag: "css:lastTry",
       cooldown: 8000            // "acabou de tentar" só vale por 8s
     };
@@ -180,7 +181,7 @@
     ui.open?.addEventListener("click", () => { ac.abort(); }, { passive: true });
 
     const goToStore = (storeUrl) => {
-      if (left || document.hidden) return;
+      if (left || document.hidden || ac.signal.aborted) return;
       clear();
       location.replace(storeUrl);
     };
@@ -267,11 +268,19 @@
 
       arm();
       location.replace(deepLink);
-      // Não ir sozinho à App Store: o prompt “Abrir?” do Safari mantém a página
-      // visível; o timeout mandava pra loja e o toque em Abrir perdia a corrida.
-      // Se falhar, mostra CTAs — loja só no toque explícito (após arming delay).
-      const timer = setTimeout(() => renderFail(deepLink, ui.ios, true), APP.iosDelay);
-      ac.signal.addEventListener("abort", () => clearTimeout(timer), { once: true });
+      // Sem o app, o Safari mostra “endereço inválido” e a página segue visível.
+      // Com o app, o prompt “Abrir?” também mantém a página visível — por isso a
+      // ida à loja passa por um recheck: se o app estiver abrindo, a página fica
+      // oculta dentro do grace e goToStore desiste.
+      let storeTimer = 0;
+      const timer = setTimeout(() => {
+        renderFail(deepLink, ui.ios, true);
+        storeTimer = setTimeout(() => goToStore(APP.ios.store), APP.iosStoreGrace);
+      }, APP.iosDelay);
+      ac.signal.addEventListener("abort", () => {
+        clearTimeout(timer);
+        clearTimeout(storeTimer);
+      }, { once: true });
       return;
     }
 

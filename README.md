@@ -42,10 +42,11 @@ Links compartilhados (WhatsApp, e-mail, SMS, etc.) precisam:
 1. Tenta `cssapp://brSelfServiceapp` e já liga o botão **Abrir o app** a esse deep link.
 2. O Safari pode mostrar o prompt nativo “Abrir esta página no 'MetLife Brasil'?”. Esse prompt **não esconde** a página.
 3. O botão **Baixar na App Store** fica **invisível e intocável** (`visibility` + `pointer-events: none`) enquanto a tentativa está em andamento — reserva o espaço no layout (botões fixos no rodapé) para nada se mover sob o dedo, mas não aceita toque.
-4. Se após ~3s a página ainda estiver visível, **não** vai sozinho à loja: mostra a UI de falha com **Tentar abrir novamente** (deep link). O botão da App Store só fica tocável **~1s depois** dessa revelação (arming delay), para um toque em voo no momento do prompt não cair na loja.
-5. Toque em “Abrir o app” cancela o timeout pendente.
-6. Se o app abrir e o usuário voltar ao Safari (ex.: app “pisca” e fecha), a página recupera o estado e mostra a UI de falha em vez de ficar no spinner infinito.
-7. Layout dos botões é `position: fixed` no rodapé — trocar texto/esconder spinner **não** move os botões.
+4. Se após ~3s a página ainda estiver visível, mostra a UI de falha com **Tentar abrir novamente** (deep link). O botão da App Store fica tocável **~1s depois** dessa revelação (arming delay), para um toque em voo no momento do prompt não cair na loja.
+5. **~1.5s depois** da UI de falha, redireciona para a **App Store** — mas só se a página ainda estiver visível. Esse *grace* é o que impede o bug antigo: quem confirmou “Abrir” tem o app abrindo, a página fica oculta nesse intervalo e o redirect é cancelado. Sem o app instalado, o Safari só mostra “o endereço é inválido”, a página segue visível e a loja abre sozinha.
+6. Toque em “Abrir o app” cancela todos os timeouts pendentes.
+7. Se o app abrir e o usuário voltar ao Safari (ex.: app “pisca” e fecha), a página mostra a UI de falha em vez de ficar no spinner infinito — e **não** vai à loja (o app existe).
+8. Layout dos botões é `position: fixed` no rodapé — trocar texto/esconder spinner **não** move os botões.
 
 ### WebView in-app (WhatsApp, Instagram, Facebook, etc.)
 
@@ -87,11 +88,18 @@ Por isso:
 - **Falha (timeout)** → redirect explícito para a loja no JavaScript
 - **Toque do usuário** → Intent **com** fallback de loja (gesto válido)
 
-## Por que o iOS não redireciona sozinho à App Store
+## Por que o redirect iOS para a loja passa por um *grace*
 
-O prompt “Abrir?” do Safari **mantém a página visível** (`document.hidden` continua `false`). Um timeout que fizesse `location.replace(AppStore)` ganhava a corrida do toque em Abrir.
+Os dois diálogos nativos do Safari **mantêm a página visível** (`document.hidden` continua `false`):
 
-Além disso, esta página **não tem nenhum caminho de script** que leve à App Store no iOS — só o toque explícito em “Baixar na App Store”. Se, com o botão da loja intocável, o usuário ainda cair na App Store depois de confirmar o prompt nativo, a causa está no **app nativo** (não nesta página).
+- com o app instalado → “Abrir esta página no 'MetLife Brasil'?”
+- sem o app → “O Safari não pode abrir a página porque o endereço é inválido.”
+
+Do ponto de vista do JavaScript os dois estados são idênticos, então um `location.replace(AppStore)` disparado direto no timeout ganhava a corrida de quem tocou em **Abrir** e mandava para a loja quem *tem* o app.
+
+A solução é ir à loja em duas etapas: timeout de ~3s renderiza a UI de falha e agenda o redirect para ~1.5s depois. Nesse intervalo, quem confirmou “Abrir” já teve o app aberto e a página ficou oculta — `goToStore` verifica `document.hidden` / `left` / `ac.signal.aborted` e desiste. Quem não tem o app continua visível e vai para a loja sozinho.
+
+Se, mesmo assim, alguém **com o app instalado** confirmar o prompt e ainda cair na App Store, a causa está no **app nativo** (ver checklist iOS abaixo).
 
 ## Como testar
 
@@ -99,8 +107,9 @@ Além disso, esta página **não tem nenhum caminho de script** que leve à App 
 2. Sem o app (ou se falhar) → após ~2s deve ir à Play Store.
 3. Abrir pelo **WhatsApp** → deve pedir para abrir no navegador.
 4. Abrir no **desktop** → deve mostrar as duas lojas.
-5. iOS Safari com app → deve tentar o scheme / prompt “Abrir?”; o botão App Store fica intocável nessa janela; se não abrir (ou se o app voltar), fica na página com CTAs (loja só após ~1s da UI de falha). Sem app → toque em App Store depois da falha.
-6. Override: `?dl=cssapp%3A%2F%2Fhome` → deve tentar esse deep link em vez do padrão.
+5. iOS Safari **com** o app → prompt “Abrir?”; confirmar deve abrir o app e **não** cair na loja.
+6. iOS Safari **sem** o app → alerta “endereço é inválido”; após o OK, deve ir sozinho para a App Store em ~4.5s.
+7. Override: `?dl=cssapp%3A%2F%2Fhome` → deve tentar esse deep link em vez do padrão.
 
 ## Observação para o time mobile
 
