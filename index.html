@@ -79,7 +79,7 @@
 
     const APP = {
       scheme: "cssapp",
-      path: "home",
+      path: "brSelfServiceapp",
       android: {
         pkg: "com.metlife.brazil.business.css",
         store: "https://play.google.com/store/apps/details?id=com.metlife.brazil.business.css&hl=pt_BR"
@@ -175,12 +175,17 @@
     };
 
     /* ─── fluxo ─── */
+    // Android: auto-try com custom scheme (sem Intent). Intent só no toque —
+    // sem gesto o Chrome ignora o app e segue S.browser_fallback_url (loja).
+    // Timeout nunca navega sozinho para a loja: só mostra UI de falha + CTAs.
     if (isAndroid) {
       show(ui.android, true);
       if (isInApp)    return renderInApp(intentUrl, ui.android);
-      if (justTried)  return renderFail(intentUrl, ui.android);   // ← estado separado
+      if (justTried)  return renderFail(intentUrl, ui.android);
       arm();
-      location.replace(intentUrl);
+      location.replace(deepLink);
+      const timer = setTimeout(() => renderFail(intentUrl, ui.android), APP.delay);
+      ac.signal.addEventListener("abort", () => clearTimeout(timer), { once: true });
       return;
     }
 
