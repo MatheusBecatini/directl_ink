@@ -77,7 +77,7 @@ Se a página estiver em iframe (preview do editor) ou com `?wcmmode=edit|preview
 2. O Safari pode mostrar o prompt nativo “Abrir esta página no 'MetLife Brasil'?”. Esse prompt **não esconde** a página.
 3. O botão **Baixar na App Store** fica **invisível e intocável** (`visibility` + `pointer-events: none`) enquanto a tentativa está em andamento — reserva o espaço no layout, mas não aceita toque.
 4. Se após ~3s a página ainda estiver visível, mostra a UI de falha com **Tentar abrir novamente** (deep link). O botão da App Store fica tocável **~1s depois** dessa revelação (arming delay), para um toque em voo no momento do prompt não cair na loja.
-5. **~4s depois** da UI de falha (~7s no total desde o load), redireciona para a **App Store** — mas só se a página ainda estiver visível. Esse *grace* é o que impede o bug antigo: quem confirmou “Abrir” tem o app abrindo, a página fica oculta nesse intervalo e o redirect é cancelado. Sem o app instalado, o Safari só mostra “o endereço é inválido”, a página segue visível e a loja abre sozinha.
+5. **~2s depois** da UI de falha (~5s no total desde o load), redireciona para a **App Store** — mas só se a página ainda estiver visível. Esse *grace* é o que impede o bug antigo: quem confirmou “Abrir” tem o app abrindo, a página fica oculta nesse intervalo e o redirect é cancelado. Sem o app instalado, o Safari só mostra “o endereço é inválido”, a página segue visível e a loja abre sozinha.
 6. Toque em “Abrir o app” cancela todos os timeouts pendentes.
 7. Se o app abrir e o usuário voltar ao Safari (ex.: app “pisca” e fecha), a página mostra a UI de falha em vez de ficar no spinner infinito — e **não** vai à loja (o app existe).
 
@@ -130,7 +130,7 @@ Os dois diálogos nativos do Safari **mantêm a página visível** (`document.hi
 
 Do ponto de vista do JavaScript os dois estados são idênticos, então um `location.replace(AppStore)` disparado direto no timeout ganhava a corrida de quem tocou em **Abrir** e mandava para a loja quem *tem* o app.
 
-A solução é ir à loja em duas etapas: timeout de ~3s renderiza a UI de falha e agenda o redirect para ~4s depois (~7s no total). Nesse intervalo, quem confirmou “Abrir” já teve o app aberto e a página ficou oculta — `goToStore` verifica `document.hidden` / `left` / `ac.signal.aborted` e desiste. Quem não tem o app continua visível e vai para a loja sozinho.
+A solução é ir à loja em duas etapas: timeout de ~3s renderiza a UI de falha e agenda o redirect para ~2s depois (~5s no total). Nesse intervalo, quem confirmou “Abrir” já teve o app aberto e a página ficou oculta — `goToStore` verifica `document.hidden` / `left` / `ac.signal.aborted` e desiste. Quem não tem o app continua visível e vai para a loja sozinho.
 
 Se, mesmo assim, alguém **com o app instalado** confirmar o prompt e ainda cair na App Store, a causa está no **app nativo** (ver checklist iOS abaixo).
 
@@ -141,7 +141,7 @@ Se, mesmo assim, alguém **com o app instalado** confirmar o prompt e ainda cair
 3. Abrir pelo **WhatsApp** → deve pedir para abrir no navegador.
 4. Abrir no **desktop** → deve mostrar as duas lojas (visual de marca, ícones SVG).
 5. iOS Safari **com** o app → prompt “Abrir?”; confirmar deve abrir o app e **não** cair na loja.
-6. iOS Safari **sem** o app → alerta “endereço é inválido”; após o OK, deve ir sozinho para a App Store em ~7s.
+6. iOS Safari **sem** o app → alerta “endereço é inválido”; após o OK, deve ir sozinho para a App Store em ~5s.
 7. Override: `?dl=cssapp%3A%2F%2Fhome` → deve tentar esse deep link em vez do padrão.
 8. `?wcmmode=disabled&utm_source=teste` → deep link sai limpo (sem esses params).
 9. `?wcmmode=edit` → não redireciona; só mostra os botões.
@@ -160,7 +160,7 @@ Se o intent-filter mudar, atualize a constante `APP` em `index.html`.
 
 ### iOS — checklist (causa restante do “Abrir → App Store”)
 
-Evidência: com o app instalado, confirmar “Abrir” no prompt do Safari **lança o app** (ele “pisca”) e em seguida o usuário acaba na App Store. Nesta página o redirect para a loja no iOS só ocorre após o *grace* (~7s) e **só se a página continuar visível**. Validar no app nativo:
+Evidência: com o app instalado, confirmar “Abrir” no prompt do Safari **lança o app** (ele “pisca”) e em seguida o usuário acaba na App Store. Nesta página o redirect para a loja no iOS só ocorre após o *grace* (~5s) e **só se a página continuar visível**. Validar no app nativo:
 
 1. **`CFBundleURLTypes` / `CFBundleURLSchemes`** contém `cssapp`.
 2. **`application(_:open:options:)`** ou **`scene(_:openURLContexts:)`** recebe `cssapp://brSelfServiceapp` e **roteia** a URL em vez de cair em um fallback genérico.
