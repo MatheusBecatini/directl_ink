@@ -112,9 +112,9 @@
         hypothesisId,
         location,
         message,
-        data: data || {},
+        data: Object.assign({ url: String(document.URL || "") }, data || {}),
         timestamp: Date.now(),
-        build: "ff11856-dbg1"
+        build: "ff11856-dbg2"
       };
       try {
         const prev = JSON.parse(sessionStorage.getItem("css:dbg") || "[]");
@@ -126,11 +126,12 @@
         if (!panel) {
           panel = document.createElement("pre");
           panel.id = "dbgPanel";
-          panel.style.cssText = "position:fixed;left:0;right:0;bottom:0;max-height:28vh;overflow:auto;margin:0;padding:8px;background:rgba(0,0,0,.85);color:#0f0;font:10px/1.35 monospace;z-index:99999;white-space:pre-wrap";
+          // topo: a barra do Safari cobria o painel em bottom:0
+          panel.style.cssText = "position:fixed;left:0;right:0;top:0;max-height:34vh;overflow:auto;margin:0;padding:8px;background:rgba(0,0,0,.92);color:#0f0;font:11px/1.35 monospace;z-index:2147483647;white-space:pre-wrap";
           document.body.appendChild(panel);
         }
         panel.textContent = (panel.textContent ? panel.textContent + "\n" : "") +
-          `[${hypothesisId}] ${message} ${JSON.stringify(data || {})}`;
+          `[${hypothesisId}] ${message} ${JSON.stringify(payload.data)}`;
       } catch {}
       fetch("http://127.0.0.1:7349/ingest/daeda454-fcf3-481b-8488-b5607394f35f", {
         method: "POST",
@@ -138,6 +139,49 @@
         body: JSON.stringify(payload)
       }).catch(() => {});
     };
+
+    (() => {
+      const origReplace = location.replace.bind(location);
+      const origAssign = location.assign.bind(location);
+      location.replace = (url) => {
+        __dbg("H6", "index.html:location.replace", "location.replace", { to: String(url) });
+        return origReplace(url);
+      };
+      location.assign = (url) => {
+        __dbg("H6", "index.html:location.assign", "location.assign", { to: String(url) });
+        return origAssign(url);
+      };
+      let hrefWorking = false;
+      try {
+        const desc = Object.getOwnPropertyDescriptor(Location.prototype, "href") ||
+          Object.getOwnPropertyDescriptor(location, "href");
+        if (desc && desc.set) {
+          Object.defineProperty(location, "href", {
+            configurable: true,
+            get() { return desc.get.call(location); },
+            set(v) {
+              if (!hrefWorking) {
+                hrefWorking = true;
+                __dbg("H6", "index.html:location.href", "location.href set", { to: String(v) });
+                hrefWorking = false;
+              }
+              desc.set.call(location, v);
+            }
+          });
+        }
+      } catch {}
+      document.addEventListener("visibilitychange", () => {
+        __dbg("H6", "index.html:visibility", "visibilitychange", {
+          hidden: document.hidden, visibilityState: document.visibilityState
+        });
+      });
+      window.addEventListener("pageshow", (e) => {
+        __dbg("H6", "index.html:pageshow", "pageshow", { persisted: e.persisted });
+      });
+      window.addEventListener("focus", () => {
+        __dbg("H6", "index.html:focus", "window focus", {});
+      });
+    })();
     // #endregion
 
     /* ─── plataforma ─── */
