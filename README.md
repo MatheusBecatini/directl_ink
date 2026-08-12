@@ -38,8 +38,10 @@ Links compartilhados (WhatsApp, e-mail, SMS, etc.) precisam:
 
 ### iOS (Safari / navegador real)
 
-1. Tenta `cssapp://brSelfServiceapp`.
-2. Se após ~2s a página ainda estiver visível, redireciona para a **App Store**.
+1. Tenta `cssapp://brSelfServiceapp` e já liga o botão **Abrir o app** a esse deep link.
+2. O Safari pode mostrar o prompt nativo “Abrir?”. Esse prompt **não esconde** a página, então um redirect automático à loja ganhava a corrida e o toque em Abrir acabava na App Store.
+3. Se após ~2s a página ainda estiver visível, **não** vai sozinho à loja: mostra a UI de falha com **Tentar abrir novamente** (deep link) e **Baixar na App Store**.
+4. Toque em “Abrir o app” cancela o timeout pendente, para o redirect da loja não disparar depois do gesto.
 
 ### WebView in-app (WhatsApp, Instagram, Facebook, etc.)
 
@@ -76,7 +78,7 @@ Por isso:
 2. Sem o app (ou se falhar) → após ~2s deve ir à Play Store.
 3. Abrir pelo **WhatsApp** → deve pedir para abrir no navegador.
 4. Abrir no **desktop** → deve mostrar as duas lojas.
-5. iOS Safari com app → deve tentar o scheme; sem app → App Store.
+5. iOS Safari com app → deve tentar o scheme / prompt “Abrir?”; se não abrir, fica na página com CTAs (loja só no toque). Sem app → toque em App Store.
 
 ## Observação para o time mobile
 

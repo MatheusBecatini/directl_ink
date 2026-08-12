@@ -148,6 +148,10 @@
     document.addEventListener("visibilitychange", () => document.hidden && markLeft(), opt);
     window.addEventListener("pagehide", markLeft, opt);
 
+    // Toque em "Abrir o app" cancela o timeout da loja (no iOS o diálogo do
+    // Safari não esconde a página — senão o redirect da loja ganhava a corrida).
+    ui.open?.addEventListener("click", () => ac.abort(), { passive: true });
+
     const goToStore = (storeUrl) => {
       if (left || document.hidden) return;
       clear();
@@ -200,11 +204,16 @@
 
     if (isIOS) {
       show(ui.ios, true);
+      show(ui.open, true);
+      ui.open?.setAttribute("href", deepLink);
       if (isInApp)    return renderInApp(deepLink, ui.ios);
       if (justTried)  return renderFail(deepLink, ui.ios);
       arm();
       location.replace(deepLink);
-      const timer = setTimeout(() => goToStore(APP.ios.store), APP.delay);
+      // Não ir sozinho à App Store: o prompt “Abrir?” do Safari mantém a página
+      // visível; o timeout mandava pra loja e o toque em Abrir perdia a corrida.
+      // Se falhar, mostra CTAs — loja só no toque explícito.
+      const timer = setTimeout(() => renderFail(deepLink, ui.ios), APP.delay);
       ac.signal.addEventListener("abort", () => clearTimeout(timer), { once: true });
       return;
     }
