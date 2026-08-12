@@ -12,6 +12,7 @@ Links compartilhados (WhatsApp, e-mail, SMS, etc.) precisam:
 2. Ir para a loja se não estiver
 3. Funcionar em Chrome Android sem cair direto na Play Store
 4. Evitar o aviso “o site quer abrir o app” do scheme customizado no Android
+5. No iOS, não deixar o botão da App Store “roubar” o toque enquanto o prompt nativo “Abrir?” estiver aberto
 
 ## Deep link e lojas
 
@@ -39,9 +40,12 @@ Links compartilhados (WhatsApp, e-mail, SMS, etc.) precisam:
 ### iOS (Safari / navegador real)
 
 1. Tenta `cssapp://brSelfServiceapp` e já liga o botão **Abrir o app** a esse deep link.
-2. O Safari pode mostrar o prompt nativo “Abrir?”. Esse prompt **não esconde** a página, então um redirect automático à loja ganhava a corrida e o toque em Abrir acabava na App Store.
-3. Se após ~2s a página ainda estiver visível, **não** vai sozinho à loja: mostra a UI de falha com **Tentar abrir novamente** (deep link) e **Baixar na App Store**.
-4. Toque em “Abrir o app” cancela o timeout pendente, para o redirect da loja não disparar depois do gesto.
+2. O Safari pode mostrar o prompt nativo “Abrir esta página no 'MetLife Brasil'?”. Esse prompt **não esconde** a página.
+3. O botão **Baixar na App Store** fica **invisível e intocável** (`visibility` + `pointer-events: none`) enquanto a tentativa está em andamento — reserva o espaço no layout (botões fixos no rodapé) para nada se mover sob o dedo, mas não aceita toque.
+4. Se após ~3s a página ainda estiver visível, **não** vai sozinho à loja: mostra a UI de falha com **Tentar abrir novamente** (deep link). O botão da App Store só fica tocável **~1s depois** dessa revelação (arming delay), para um toque em voo no momento do prompt não cair na loja.
+5. Toque em “Abrir o app” cancela o timeout pendente.
+6. Se o app abrir e o usuário voltar ao Safari (ex.: app “pisca” e fecha), a página recupera o estado e mostra a UI de falha em vez de ficar no spinner infinito.
+7. Layout dos botões é `position: fixed` no rodapé — trocar texto/esconder spinner **não** move os botões.
 
 ### WebView in-app (WhatsApp, Instagram, Facebook, etc.)
 
@@ -56,6 +60,17 @@ Mostra os dois botões de loja (Play Store e App Store), sem tentar deep link.
 ### Proteção anti-loop
 
 Há um cooldown de ~8s (`sessionStorage`) após uma tentativa automática. Se o usuário voltar rápido demais, a página mostra a UI de falha com CTAs em vez de disparar outro auto-redirect.
+
+### Override de deep link (`?dl=`)
+
+Para o time mobile testar variantes sem redeploy:
+
+```
+https://matheusbecatini.github.io/directl_ink/?dl=cssapp%3A%2F%2Fhome
+https://matheusbecatini.github.io/directl_ink/?dl=cssapp%3A%2F%2FbrSelfServiceapp%2F
+```
+
+O parâmetro `dl` é removido da query repassada ao app; demais query params continuam sendo anexados ao deep link padrão.
 
 ## Por que Android não usa `cssapp://` no auto-open
 
@@ -72,15 +87,24 @@ Por isso:
 - **Falha (timeout)** → redirect explícito para a loja no JavaScript
 - **Toque do usuário** → Intent **com** fallback de loja (gesto válido)
 
+## Por que o iOS não redireciona sozinho à App Store
+
+O prompt “Abrir?” do Safari **mantém a página visível** (`document.hidden` continua `false`). Um timeout que fizesse `location.replace(AppStore)` ganhava a corrida do toque em Abrir.
+
+Além disso, esta página **não tem nenhum caminho de script** que leve à App Store no iOS — só o toque explícito em “Baixar na App Store”. Se, com o botão da loja intocável, o usuário ainda cair na App Store depois de confirmar o prompt nativo, a causa está no **app nativo** (não nesta página).
+
 ## Como testar
 
 1. Abrir a página no **Chrome Android** com o app instalado → deve abrir o app.
 2. Sem o app (ou se falhar) → após ~2s deve ir à Play Store.
 3. Abrir pelo **WhatsApp** → deve pedir para abrir no navegador.
 4. Abrir no **desktop** → deve mostrar as duas lojas.
-5. iOS Safari com app → deve tentar o scheme / prompt “Abrir?”; se não abrir, fica na página com CTAs (loja só no toque). Sem app → toque em App Store.
+5. iOS Safari com app → deve tentar o scheme / prompt “Abrir?”; o botão App Store fica intocável nessa janela; se não abrir (ou se o app voltar), fica na página com CTAs (loja só após ~1s da UI de falha). Sem app → toque em App Store depois da falha.
+6. Override: `?dl=cssapp%3A%2F%2Fhome` → deve tentar esse deep link em vez do padrão.
 
 ## Observação para o time mobile
+
+### Android
 
 O app nativo precisa registrar no AndroidManifest:
 
@@ -89,3 +113,15 @@ O app nativo precisa registrar no AndroidManifest:
 - package `com.metlife.brazil.business.css`
 
 Se o intent-filter mudar, atualize a constante `APP` em `index.html`.
+
+### iOS — checklist (causa restante do “Abrir → App Store”)
+
+Evidência: com o app instalado, confirmar “Abrir” no prompt do Safari **lança o app** (ele “pisca”) e em seguida o usuário acaba na App Store. Nesta página **não há** redirect automático para a loja no iOS. Validar no app nativo:
+
+1. **`CFBundleURLTypes` / `CFBundleURLSchemes`** contém `cssapp`.
+2. **`application(_:open:options:)`** ou **`scene(_:openURLContexts:)`** recebe `cssapp://brSelfServiceapp` e **roteia** a URL em vez de cair em um fallback genérico.
+3. **Não** há checagem de versão mínima / forced update que abra a App Store no cold launch por deep link.
+4. Confirmar a forma exata da URL aceita pelo app:
+   - `cssapp://brSelfServiceapp` → host `brSelfServiceapp`, path vazio
+   - Variantes úteis para teste via `?dl=`: `cssapp://brSelfServiceapp/`, `cssapp://home` (já usado no histórico deste repo)
+5. Solução definitiva no iOS: **Universal Link** (arquivo AASA no domínio MetLife + entitlement `applinks:`), que abre o app **sem** o prompt “Abrir?” do Safari.

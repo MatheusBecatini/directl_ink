@@ -24,6 +24,7 @@
       justify-content: center;
       text-align: center;
       padding: 24px;
+      padding-bottom: 180px; /* espaço para .buttons fixo no rodapé */
     }
     .spinner {
       width: 40px;
@@ -37,7 +38,20 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     h1 { font-size: 20px; margin-bottom: 8px; font-weight: 600; }
     p { font-size: 14px; opacity: 0.85; margin-bottom: 32px; }
-    .buttons { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 320px; }
+    /* Botões fixos: não refluem quando o spinner some ou o texto muda. */
+    .buttons {
+      position: fixed;
+      bottom: 32px;
+      left: 0;
+      right: 0;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+      max-width: 320px;
+    }
     .btn {
       display: block;
       background: #fff;
@@ -56,6 +70,8 @@
     }
     .btn:active { transform: scale(0.97); }
     .hidden { display: none !important; }
+    /* Ocupa espaço (layout estável) mas intocável / invisível. */
+    .veiled { visibility: hidden !important; pointer-events: none !important; }
   </style>
 </head>
 <body>
@@ -86,6 +102,8 @@
       },
       ios: { store: "https://apps.apple.com/br/app/metlife-brasil/id1625752674" },
       delay: 2000,
+      iosDelay: 3000,           // iOS: mais tempo para o prompt “Abrir?”
+      storeArmDelay: 1000,      // iOS: botão da loja só fica tocável após isso
       flag: "css:lastTry",
       cooldown: 8000            // "acabou de tentar" só vale por 8s
     };
@@ -102,87 +120,8 @@
       open: $("openBtn"), android: $("androidBtn"), ios: $("iosBtn")
     };
     const show = (n, on) => n && n.classList.toggle("hidden", !on);
+    const veil = (n, on) => n && n.classList.toggle("veiled", !!on);
     const say  = (n, v)  => { if (n) n.textContent = v; };
-
-    // #region agent log
-    const __dbg = (hypothesisId, location, message, data) => {
-      const payload = {
-        sessionId: "1d2311",
-        runId: "pre-fix",
-        hypothesisId,
-        location,
-        message,
-        data: Object.assign({ url: String(document.URL || "") }, data || {}),
-        timestamp: Date.now(),
-        build: "ff11856-dbg2"
-      };
-      try {
-        const prev = JSON.parse(sessionStorage.getItem("css:dbg") || "[]");
-        prev.push(payload);
-        sessionStorage.setItem("css:dbg", JSON.stringify(prev.slice(-40)));
-      } catch {}
-      try {
-        let panel = document.getElementById("dbgPanel");
-        if (!panel) {
-          panel = document.createElement("pre");
-          panel.id = "dbgPanel";
-          // topo: a barra do Safari cobria o painel em bottom:0
-          panel.style.cssText = "position:fixed;left:0;right:0;top:0;max-height:34vh;overflow:auto;margin:0;padding:8px;background:rgba(0,0,0,.92);color:#0f0;font:11px/1.35 monospace;z-index:2147483647;white-space:pre-wrap";
-          document.body.appendChild(panel);
-        }
-        panel.textContent = (panel.textContent ? panel.textContent + "\n" : "") +
-          `[${hypothesisId}] ${message} ${JSON.stringify(payload.data)}`;
-      } catch {}
-      fetch("http://127.0.0.1:7349/ingest/daeda454-fcf3-481b-8488-b5607394f35f", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "1d2311" },
-        body: JSON.stringify(payload)
-      }).catch(() => {});
-    };
-
-    (() => {
-      const origReplace = location.replace.bind(location);
-      const origAssign = location.assign.bind(location);
-      location.replace = (url) => {
-        __dbg("H6", "index.html:location.replace", "location.replace", { to: String(url) });
-        return origReplace(url);
-      };
-      location.assign = (url) => {
-        __dbg("H6", "index.html:location.assign", "location.assign", { to: String(url) });
-        return origAssign(url);
-      };
-      let hrefWorking = false;
-      try {
-        const desc = Object.getOwnPropertyDescriptor(Location.prototype, "href") ||
-          Object.getOwnPropertyDescriptor(location, "href");
-        if (desc && desc.set) {
-          Object.defineProperty(location, "href", {
-            configurable: true,
-            get() { return desc.get.call(location); },
-            set(v) {
-              if (!hrefWorking) {
-                hrefWorking = true;
-                __dbg("H6", "index.html:location.href", "location.href set", { to: String(v) });
-                hrefWorking = false;
-              }
-              desc.set.call(location, v);
-            }
-          });
-        }
-      } catch {}
-      document.addEventListener("visibilitychange", () => {
-        __dbg("H6", "index.html:visibility", "visibilitychange", {
-          hidden: document.hidden, visibilityState: document.visibilityState
-        });
-      });
-      window.addEventListener("pageshow", (e) => {
-        __dbg("H6", "index.html:pageshow", "pageshow", { persisted: e.persisted });
-      });
-      window.addEventListener("focus", () => {
-        __dbg("H6", "index.html:focus", "window focus", {});
-      });
-    })();
-    // #endregion
 
     /* ─── plataforma ─── */
     const ua = navigator.userAgent || "";
@@ -203,14 +142,22 @@
                   (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
     /* ─── urls ─── */
-    const deepLink = `${APP.scheme}://${APP.path}${location.search}`;
+    // ?dl=<deep link encodado> deixa o time mobile testar variantes sem redeploy.
+    // O param "dl" é removido da query repassada ao app.
+    const params = new URLSearchParams(location.search);
+    const dlOverride = params.get("dl");
+    params.delete("dl");
+    const qs = params.toString();
+    const qsSuffix = qs ? `?${qs}` : "";
+    // URLSearchParams.get já decodifica %XX; não chamar decodeURIComponent de novo.
+    const deepLink = dlOverride || `${APP.scheme}://${APP.path}${qsSuffix}`;
     // Intent sem fallback: abre o app direto (sem o aviso do cssapp://).
     // Não usar S.browser_fallback_url no auto-open — sem gesto o Chrome ia
     // direto pra loja e pulava o app.
-    const intentLaunch = `intent://${APP.path}${location.search}#Intent` +
+    const intentLaunch = `intent://${APP.path}${qsSuffix}#Intent` +
       `;scheme=${APP.scheme};package=${APP.android.pkg};end`;
     // Intent com loja: só no toque do usuário (gesto válido).
-    const intentUrl = `intent://${APP.path}${location.search}#Intent` +
+    const intentUrl = `intent://${APP.path}${qsSuffix}#Intent` +
       `;scheme=${APP.scheme};package=${APP.android.pkg}` +
       `;S.browser_fallback_url=${encodeURIComponent(APP.android.store)};end`;
 
@@ -220,117 +167,72 @@
     const clear = () => { try { sessionStorage.removeItem(APP.flag); } catch {} };
     const justTried = Date.now() - read() < APP.cooldown;
 
-    // #region agent log
-    __dbg("H4", "index.html:boot", "platform+urls", {
-      isIOS, isAndroid, isInApp, isRealBrowser, justTried,
-      deepLink, openHref: ui.open && ui.open.getAttribute("href"),
-      iosHref: ui.ios && ui.ios.getAttribute("href"),
-      ua: ua.slice(0, 160)
-    });
-    // #endregion
-
     /* ─── saiu da página ─── */
     const ac = new AbortController();
     const opt = { signal: ac.signal, passive: true };
     let left = false;
-    const markLeft = () => {
-      // #region agent log
-      __dbg("H3", "index.html:markLeft", "page hidden/left", { hidden: document.hidden, leftBefore: left });
-      // #endregion
-      left = true; clear(); ac.abort();
-    };  // abriu o app: limpa o flag
+    const markLeft = () => { left = true; clear(); ac.abort(); };  // abriu o app: limpa o flag
     document.addEventListener("visibilitychange", () => document.hidden && markLeft(), opt);
     window.addEventListener("pagehide", markLeft, opt);
 
-    // Toque em "Abrir o app" cancela o timeout da loja (no iOS o diálogo do
-    // Safari não esconde a página — senão o redirect da loja ganhava a corrida).
-    ui.open?.addEventListener("click", (e) => {
-      // #region agent log
-      __dbg("H1", "index.html:openClick", "openBtn clicked", {
-        href: ui.open && ui.open.getAttribute("href"),
-        aborted: ac.signal.aborted,
-        left,
-        targetId: e.target && (e.target.id || e.target.tagName)
-      });
-      // #endregion
-      ac.abort();
-    }, { passive: true });
-
-    // #region agent log
-    ui.ios?.addEventListener("click", (e) => {
-      __dbg("H2", "index.html:iosBtnClick", "App Store button clicked", {
-        href: ui.ios && ui.ios.getAttribute("href"),
-        targetId: e.target && (e.target.id || e.target.tagName)
-      });
-    }, { passive: true });
-    // #endregion
+    // Toque em "Abrir o app" cancela o timeout (no iOS o diálogo do Safari
+    // não esconde a página — senão a UI de falha ganhava a corrida).
+    ui.open?.addEventListener("click", () => { ac.abort(); }, { passive: true });
 
     const goToStore = (storeUrl) => {
-      // #region agent log
-      __dbg("H3", "index.html:goToStore", "goToStore called", {
-        storeUrl, left, hidden: document.hidden, aborted: ac.signal.aborted
-      });
-      // #endregion
       if (left || document.hidden) return;
       clear();
       location.replace(storeUrl);
     };
 
     /* ─── telas ─── */
-    const renderFail = (href, storeBtn) => {
-      // #region agent log
-      __dbg("H4", "index.html:renderFail", "renderFail", {
-        href, storeBtnId: storeBtn && storeBtn.id, left, hidden: document.hidden
-      });
-      // #endregion
+    // gateStore: no iOS, o botão da loja fica veiled (intocável) e só arma
+    // após storeArmDelay — evita toque perdido no prompt nativo.
+    const renderFail = (href, storeBtn, gateStore) => {
       if (left || document.hidden) return;
       clear();                                  // próxima tentativa é limpa
-      show(ui.spinner, false);
+      veil(ui.spinner, true);                   // oculta sem refluir o layout
       say(ui.title, COPY.fail.t);
       say(ui.subtitle, COPY.fail.s);
       say(ui.open, COPY.fail.c);
       ui.open?.setAttribute("href", href);
       show(ui.open, true);
       show(storeBtn, true);
-      // #region agent log
-      __dbg("H1", "index.html:renderFail:after", "open href after renderFail", {
-        openHref: ui.open && ui.open.getAttribute("href"),
-        iosHidden: ui.ios && ui.ios.classList.contains("hidden"),
-        androidHidden: ui.android && ui.android.classList.contains("hidden")
-      });
-      // #endregion
+      if (gateStore && storeBtn) {
+        veil(storeBtn, true);
+        setTimeout(() => veil(storeBtn, false), APP.storeArmDelay);
+      } else {
+        veil(storeBtn, false);
+      }
     };
 
     const renderInApp = (href, storeBtn) => {
-      // #region agent log
-      __dbg("H4", "index.html:renderInApp", "renderInApp", { href, storeBtnId: storeBtn && storeBtn.id });
-      // #endregion
-      show(ui.spinner, false);
+      veil(ui.spinner, true);
       say(ui.title, COPY.inapp.t);
       say(ui.subtitle, COPY.inapp.s);
       say(ui.open, COPY.inapp.c);
       ui.open?.setAttribute("href", href);
       show(ui.open, true);
       show(storeBtn, true);
+      veil(storeBtn, false);
     };
 
     const renderDesktop = () => {
-      show(ui.spinner, false);
+      veil(ui.spinner, true);
       say(ui.title, COPY.desktop.t);
       say(ui.subtitle, COPY.desktop.s);
       show(ui.open, false);
       show(ui.android, true);
       show(ui.ios, true);
+      veil(ui.android, false);
+      veil(ui.ios, false);
     };
 
     /* ─── fluxo padrão: tenta app → se falhar, loja ─── */
     if (isAndroid) {
-      // #region agent log
-      __dbg("H4", "index.html:android", "android branch", { isInApp, justTried });
-      // #endregion
       show(ui.android, true);
       if (isInApp)    return renderInApp(intentUrl, ui.android);
-      if (justTried)  return renderFail(intentUrl, ui.android);
+      if (justTried)  return renderFail(intentUrl, ui.android, false);
       arm();
       location.replace(intentLaunch);
       const timer = setTimeout(() => goToStore(APP.android.store), APP.delay);
@@ -339,32 +241,36 @@
     }
 
     if (isIOS) {
-      // #region agent log
-      __dbg("H4", "index.html:ios", "ios branch", { isInApp, justTried, deepLink });
-      // #endregion
-      show(ui.ios, true);
       show(ui.open, true);
       ui.open?.setAttribute("href", deepLink);
+      // Reserva o espaço do botão da loja (layout estável) mas fica intocável
+      // até a falha ser confirmada — evita toque perdido sob o prompt nativo.
+      show(ui.ios, true);
+      veil(ui.ios, true);
+
       if (isInApp)    return renderInApp(deepLink, ui.ios);
-      if (justTried)  return renderFail(deepLink, ui.ios);
+      if (justTried)  return renderFail(deepLink, ui.ios, true);
+
+      // Se o app abrir e voltar (flash), markLeft deixa left=true e o timeout
+      // não renderiza. Ao voltar à página, mostra a UI de falha em vez do
+      // spinner infinito. Só age se left===true (não no pageshow inicial).
+      // Android não precisa disso (vai à loja em 2s).
+      const onReturn = () => {
+        if (document.hidden || !left) return;
+        left = false;
+        renderFail(deepLink, ui.ios, true);
+      };
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) onReturn();
+      }, { passive: true });
+      window.addEventListener("pageshow", onReturn, { passive: true });
+
       arm();
-      // #region agent log
-      __dbg("H5", "index.html:ios:auto", "auto deepLink replace", {
-        deepLink, openHref: ui.open && ui.open.getAttribute("href")
-      });
-      // #endregion
       location.replace(deepLink);
       // Não ir sozinho à App Store: o prompt “Abrir?” do Safari mantém a página
       // visível; o timeout mandava pra loja e o toque em Abrir perdia a corrida.
-      // Se falhar, mostra CTAs — loja só no toque explícito.
-      const timer = setTimeout(() => {
-        // #region agent log
-        __dbg("H3", "index.html:ios:timeout", "ios timeout fired → renderFail (not store)", {
-          left, hidden: document.hidden, aborted: ac.signal.aborted
-        });
-        // #endregion
-        renderFail(deepLink, ui.ios);
-      }, APP.delay);
+      // Se falhar, mostra CTAs — loja só no toque explícito (após arming delay).
+      const timer = setTimeout(() => renderFail(deepLink, ui.ios, true), APP.iosDelay);
       ac.signal.addEventListener("abort", () => clearTimeout(timer), { once: true });
       return;
     }
