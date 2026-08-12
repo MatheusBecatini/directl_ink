@@ -4,6 +4,8 @@ Página estática de smart redirect: tenta abrir o app MetLife Brasil e, se não
 
 Arquivo principal: [`index.html`](index.html).
 
+O **visual de marca** (fundo branco, `MetLifeCircular` / `Noto Sans`, botões `btn-brand-*` azuis `#007abc`, ícones SVG das lojas no DAM, `<section class="ml-app-redirect">`) vem de `master`. A **lógica de redirect** (Android Intent, iOS com grace, WebView, cooldown) vem de `versao-estavel`.
+
 ## O que resolve
 
 Links compartilhados (WhatsApp, e-mail, SMS, etc.) precisam:
@@ -25,6 +27,38 @@ Links compartilhados (WhatsApp, e-mail, SMS, etc.) precisam:
 | Play Store | [MetLife Brasil](https://play.google.com/store/apps/details?id=com.metlife.brazil.business.css&hl=pt_BR) |
 | App Store | [MetLife Brasil](https://apps.apple.com/br/app/metlife-brasil/id1625752674) |
 
+## Componente AEM
+
+`index.html` é uma página standalone completa (para testar no GitHub Pages / iPhone), mas o trecho embutível no AEM está delimitado por:
+
+```html
+<!-- ===== INICIO DO COMPONENTE AEM — copiar daqui ===== -->
+...
+<!-- ===== FIM DO COMPONENTE AEM ===== -->
+```
+
+Ao copiar para o AEM:
+
+- **Copiar** o `<style>` do componente (tudo escopado em `.ml-app-redirect`, inclusive `.hidden` / `.veiled`), a `<section>` e o `<script>`
+- **Não copiar** o bloco `FALLBACK LOCAL` do `<head>` — no AEM, fontes, `body`, `btn-brand-*` e `font-*` já vêm do CSS global da MetLife
+
+Não há `position: fixed` nos botões: o layout segue o fluxo natural de `master` (`.ml-app-redirect__buttons` no fluxo). A proteção anti-mis-tap no iOS é o `.veiled` (`pointer-events: none`) + arming delay de ~1s.
+
+### Query string filtrada
+
+Antes de anexar a query da página ao deep link, estes parâmetros são removidos (não devem chegar ao app):
+
+- `wcmmode`
+- `utm_*`
+- `gclid`, `fbclid`
+- `mc_cid`, `mc_eid`
+
+O override `?dl=` continua funcionando; o próprio `dl` também é removido da query repassada.
+
+### Modo autor (AEM)
+
+Se a página estiver em iframe (preview do editor) ou com `?wcmmode=edit|preview|design`, o script **não** faz auto-open nem redirect para a loja: só exibe os três botões com a copy padrão, para o autor conseguir revisar o componente sem ser jogado para a App Store.
+
 ## Comportamento esperado
 
 ### Android (Chrome / navegador real)
@@ -41,12 +75,11 @@ Links compartilhados (WhatsApp, e-mail, SMS, etc.) precisam:
 
 1. Tenta `cssapp://brSelfServiceapp` e já liga o botão **Abrir o app** a esse deep link.
 2. O Safari pode mostrar o prompt nativo “Abrir esta página no 'MetLife Brasil'?”. Esse prompt **não esconde** a página.
-3. O botão **Baixar na App Store** fica **invisível e intocável** (`visibility` + `pointer-events: none`) enquanto a tentativa está em andamento — reserva o espaço no layout (botões fixos no rodapé) para nada se mover sob o dedo, mas não aceita toque.
+3. O botão **Baixar na App Store** fica **invisível e intocável** (`visibility` + `pointer-events: none`) enquanto a tentativa está em andamento — reserva o espaço no layout, mas não aceita toque.
 4. Se após ~3s a página ainda estiver visível, mostra a UI de falha com **Tentar abrir novamente** (deep link). O botão da App Store fica tocável **~1s depois** dessa revelação (arming delay), para um toque em voo no momento do prompt não cair na loja.
-5. **~1.5s depois** da UI de falha, redireciona para a **App Store** — mas só se a página ainda estiver visível. Esse *grace* é o que impede o bug antigo: quem confirmou “Abrir” tem o app abrindo, a página fica oculta nesse intervalo e o redirect é cancelado. Sem o app instalado, o Safari só mostra “o endereço é inválido”, a página segue visível e a loja abre sozinha.
+5. **~4s depois** da UI de falha (~7s no total desde o load), redireciona para a **App Store** — mas só se a página ainda estiver visível. Esse *grace* é o que impede o bug antigo: quem confirmou “Abrir” tem o app abrindo, a página fica oculta nesse intervalo e o redirect é cancelado. Sem o app instalado, o Safari só mostra “o endereço é inválido”, a página segue visível e a loja abre sozinha.
 6. Toque em “Abrir o app” cancela todos os timeouts pendentes.
 7. Se o app abrir e o usuário voltar ao Safari (ex.: app “pisca” e fecha), a página mostra a UI de falha em vez de ficar no spinner infinito — e **não** vai à loja (o app existe).
-8. Layout dos botões é `position: fixed` no rodapé — trocar texto/esconder spinner **não** move os botões.
 
 ### WebView in-app (WhatsApp, Instagram, Facebook, etc.)
 
@@ -71,7 +104,7 @@ https://matheusbecatini.github.io/directl_ink/?dl=cssapp%3A%2F%2Fhome
 https://matheusbecatini.github.io/directl_ink/?dl=cssapp%3A%2F%2FbrSelfServiceapp%2F
 ```
 
-O parâmetro `dl` é removido da query repassada ao app; demais query params continuam sendo anexados ao deep link padrão.
+O parâmetro `dl` é removido da query repassada ao app; demais query params (após o filtro AEM/campanha) continuam sendo anexados ao deep link padrão.
 
 ## Por que Android não usa `cssapp://` no auto-open
 
@@ -97,7 +130,7 @@ Os dois diálogos nativos do Safari **mantêm a página visível** (`document.hi
 
 Do ponto de vista do JavaScript os dois estados são idênticos, então um `location.replace(AppStore)` disparado direto no timeout ganhava a corrida de quem tocou em **Abrir** e mandava para a loja quem *tem* o app.
 
-A solução é ir à loja em duas etapas: timeout de ~3s renderiza a UI de falha e agenda o redirect para ~1.5s depois. Nesse intervalo, quem confirmou “Abrir” já teve o app aberto e a página ficou oculta — `goToStore` verifica `document.hidden` / `left` / `ac.signal.aborted` e desiste. Quem não tem o app continua visível e vai para a loja sozinho.
+A solução é ir à loja em duas etapas: timeout de ~3s renderiza a UI de falha e agenda o redirect para ~4s depois (~7s no total). Nesse intervalo, quem confirmou “Abrir” já teve o app aberto e a página ficou oculta — `goToStore` verifica `document.hidden` / `left` / `ac.signal.aborted` e desiste. Quem não tem o app continua visível e vai para a loja sozinho.
 
 Se, mesmo assim, alguém **com o app instalado** confirmar o prompt e ainda cair na App Store, a causa está no **app nativo** (ver checklist iOS abaixo).
 
@@ -106,10 +139,12 @@ Se, mesmo assim, alguém **com o app instalado** confirmar o prompt e ainda cair
 1. Abrir a página no **Chrome Android** com o app instalado → deve abrir o app.
 2. Sem o app (ou se falhar) → após ~2s deve ir à Play Store.
 3. Abrir pelo **WhatsApp** → deve pedir para abrir no navegador.
-4. Abrir no **desktop** → deve mostrar as duas lojas.
+4. Abrir no **desktop** → deve mostrar as duas lojas (visual de marca, ícones SVG).
 5. iOS Safari **com** o app → prompt “Abrir?”; confirmar deve abrir o app e **não** cair na loja.
-6. iOS Safari **sem** o app → alerta “endereço é inválido”; após o OK, deve ir sozinho para a App Store em ~4.5s.
+6. iOS Safari **sem** o app → alerta “endereço é inválido”; após o OK, deve ir sozinho para a App Store em ~7s.
 7. Override: `?dl=cssapp%3A%2F%2Fhome` → deve tentar esse deep link em vez do padrão.
+8. `?wcmmode=disabled&utm_source=teste` → deep link sai limpo (sem esses params).
+9. `?wcmmode=edit` → não redireciona; só mostra os botões.
 
 ## Observação para o time mobile
 
@@ -125,7 +160,7 @@ Se o intent-filter mudar, atualize a constante `APP` em `index.html`.
 
 ### iOS — checklist (causa restante do “Abrir → App Store”)
 
-Evidência: com o app instalado, confirmar “Abrir” no prompt do Safari **lança o app** (ele “pisca”) e em seguida o usuário acaba na App Store. Nesta página **não há** redirect automático para a loja no iOS. Validar no app nativo:
+Evidência: com o app instalado, confirmar “Abrir” no prompt do Safari **lança o app** (ele “pisca”) e em seguida o usuário acaba na App Store. Nesta página o redirect para a loja no iOS só ocorre após o *grace* (~7s) e **só se a página continuar visível**. Validar no app nativo:
 
 1. **`CFBundleURLTypes` / `CFBundleURLSchemes`** contém `cssapp`.
 2. **`application(_:open:options:)`** ou **`scene(_:openURLContexts:)`** recebe `cssapp://brSelfServiceapp` e **roteia** a URL em vez de cair em um fallback genérico.
